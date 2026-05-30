@@ -1,5 +1,3 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
 import { Collection, Db } from "mongodb";
 import { freshID } from "@utils/database.ts";
 import type { ID } from "@utils/types.ts";
@@ -31,7 +29,9 @@ const REQUESTING_SAVE_RESPONSES =
 const PREFIX = "Requesting" + ".";
 
 // --- Type Definitions ---
-type Request = ID;
+// Internal alias for a Request identifier. Named `RequestID` (rather than
+// `Request`) so it doesn't shadow the Web-standard `Request` used by the server.
+type RequestID = ID;
 
 /**
  * a set of Requests with
@@ -39,7 +39,7 @@ type Request = ID;
  *   an optional response unknown
  */
 interface RequestDoc {
-  _id: Request;
+  _id: RequestID;
   input: { path: string; [key: string]: unknown };
   response?: unknown;
   createdAt: Date;
@@ -61,7 +61,7 @@ interface PendingRequest {
  */
 export default class RequestingConcept {
   private readonly requests: Collection<RequestDoc>;
-  private readonly pending: Map<Request, PendingRequest> = new Map();
+  private readonly pending: Map<RequestID, PendingRequest> = new Map();
   private readonly timeout: number;
 
   constructor(private readonly db: Db) {
@@ -82,8 +82,8 @@ export default class RequestingConcept {
    */
   async request(
     inputs: { path: string; [key: string]: unknown },
-  ): Promise<{ request: Request }> {
-    const requestId = freshID() as Request;
+  ): Promise<{ request: RequestID }> {
+    const requestId = freshID() as RequestID;
     const requestDoc: RequestDoc = {
       _id: requestId,
       input: inputs,
@@ -114,7 +114,7 @@ export default class RequestingConcept {
    * **effects** sets the response of the given Request to the provided key-value pairs.
    */
   async respond(
-    { request, ...response }: { request: Request; [key: string]: unknown },
+    { request, ...response }: { request: RequestID; [key: string]: unknown },
   ): Promise<{ request: string }> {
     const pendingRequest = this.pending.get(request);
     if (pendingRequest) {
@@ -136,7 +136,7 @@ export default class RequestingConcept {
    * **effects** returns the response associated with the given request, waiting if necessary up to a configured timeout.
    */
   async _awaitResponse(
-    { request }: { request: Request },
+    { request }: { request: RequestID },
   ): Promise<{ response: unknown }[]> {
     const pendingRequest = this.pending.get(request);
 
@@ -174,11 +174,60 @@ export default class RequestingConcept {
   }
 }
 
+// --- HTTP server helpers (Bun-native) ---
+
 /**
- * Starts the Hono web server that listens for incoming requests and pipes them
- * into the Requesting concept instance. Additionally, it allows passthrough
- * requests to concept actions by default. These should be
+ * The set of CORS headers applied to every response. The allowed origin is
+ * configured via `REQUESTING_ALLOWED_DOMAIN` (default "*"), mirroring the
+ * behavior previously provided by `hono/cors`.
+ */
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": REQUESTING_ALLOWED_DOMAIN,
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+/**
+ * Builds a JSON `Response` with the configured CORS headers attached.
+ * This keeps every handler terse while guaranteeing consistent headers.
+ */
+function json(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
+/**
+ * Parses a request body as JSON, returning a fallback when the body is empty
+ * or malformed. Passthrough routes default to `{}`; the catch-all instead uses
+ * `undefined` to signal "no valid object" so it can answer with a 400.
+ */
+async function readJsonBody<T>(req: Request, fallback: T): Promise<unknown | T> {
+  try {
+    const text = await req.text();
+    if (text.trim() === "") return fallback;
+    return JSON.parse(text);
+  } catch {
+    return fallback;
+  }
+}
+
+/** A registered passthrough route mapping a concept method onto an HTTP path. */
+interface PassthroughRoute {
+  conceptName: string;
+  method: string;
+  concept: Record<string, (body: unknown) => Promise<unknown>>;
+}
+
+/**
+ * Starts the Bun-native web server that listens for incoming requests and pipes
+ * them into the Requesting concept instance. Additionally, it allows passthrough
+ * requests to concept actions by default. These should be verified intentionally
+ * via the inclusions/exclusions in `passthrough.ts`.
+ *
  * @param concepts The complete instantiated concepts import from "@concepts"
+ * @returns The `Bun.serve` server instance.
  */
 export function startRequestingServer(
   concepts: Record<string, any>,
@@ -187,13 +236,6 @@ export function startRequestingServer(
   if (!(Requesting instanceof RequestingConcept)) {
     throw new Error("Requesting concept missing or broken.");
   }
-  const app = new Hono();
-  app.use(
-    "/*",
-    cors({
-      origin: REQUESTING_ALLOWED_DOMAIN,
-    }),
-  );
 
   /**
    * PASSTHROUGH ROUTES
@@ -205,13 +247,15 @@ export function startRequestingServer(
    */
 
   console.log("\nRegistering concept passthrough routes.");
+  const passthrough = new Map<string, PassthroughRoute>();
   let unverified = false;
   for (const [conceptName, concept] of Object.entries(instances)) {
     const methods = Object.getOwnPropertyNames(
       Object.getPrototypeOf(concept),
     )
       .filter((name) =>
-        name !== "constructor" && typeof concept[name] === "function"
+        name !== "constructor" &&
+        typeof (concept as Record<string, unknown>)[name] === "function"
       );
     for (const method of methods) {
       const route = `${REQUESTING_BASE_URL}/${conceptName}/${method}`;
@@ -222,15 +266,10 @@ export function startRequestingServer(
         ? `  -> ${route}`
         : `WARNING - UNVERIFIED ROUTE: ${route}`;
 
-      app.post(route, async (c) => {
-        try {
-          const body = await c.req.json().catch(() => ({})); // Handle empty body
-          const result = await concept[method](body);
-          return c.json(result);
-        } catch (e) {
-          console.error(`Error in ${conceptName}.${method}:`, e);
-          return c.json({ error: "An internal server error occurred." }, 500);
-        }
+      passthrough.set(route, {
+        conceptName,
+        method,
+        concept: concept as PassthroughRoute["concept"],
       });
       console.log(msg);
     }
@@ -241,18 +280,38 @@ export function startRequestingServer(
   }
 
   /**
-   * REQUESTING ROUTES
-   *
-   * Captures all POST routes under the base URL.
-   * The specific action path is extracted from the URL.
+   * Handles a registered passthrough route: reads the JSON body (default `{}`),
+   * invokes the concept method, and returns its result as JSON.
    */
-
-  const routePath = `${REQUESTING_BASE_URL}/*`;
-  app.post(routePath, async (c) => {
+  async function handlePassthrough(
+    req: Request,
+    { conceptName, method, concept }: PassthroughRoute,
+  ): Promise<Response> {
     try {
-      const body = await c.req.json();
+      const body = await readJsonBody(req, {});
+      const result = await concept[method](body);
+      return json(result);
+    } catch (e) {
+      console.error(`Error in ${conceptName}.${method}:`, e);
+      return json({ error: "An internal server error occurred." }, 500);
+    }
+  }
+
+  /**
+   * REQUESTING ROUTE
+   *
+   * Handles all POST paths under the base URL that are not passthrough routes.
+   * The specific action path is extracted from the URL and combined with the
+   * JSON body to form the input to `Requesting.request`.
+   */
+  async function handleRequesting(
+    req: Request,
+    pathname: string,
+  ): Promise<Response> {
+    try {
+      const body = await readJsonBody(req, undefined);
       if (typeof body !== "object" || body === null) {
-        return c.json(
+        return json(
           { error: "Invalid request body. Must be a JSON object." },
           400,
         );
@@ -260,11 +319,11 @@ export function startRequestingServer(
 
       // Extract the specific action path from the request URL.
       // e.g., if base is /api and request is /api/users/create, path is /users/create
-      const actionPath = c.req.path.substring(REQUESTING_BASE_URL.length);
+      const actionPath = pathname.slice(REQUESTING_BASE_URL.length);
 
       // Combine the path from the URL with the JSON body to form the action's input.
       const inputs = {
-        ...body,
+        ...(body as Record<string, unknown>),
         path: actionPath,
       };
 
@@ -279,23 +338,42 @@ export function startRequestingServer(
 
       // 3. Send the response back to the client.
       const { response } = responseArray[0];
-      return c.json(response);
+      return json(response);
     } catch (e) {
       if (e instanceof Error) {
         console.error(`[Requesting] Error processing request:`, e.message);
         if (e.message.includes("timed out")) {
-          return c.json({ error: "Request timed out." }, 504); // Gateway Timeout
+          return json({ error: "Request timed out." }, 504); // Gateway Timeout
         }
-        return c.json({ error: "An internal server error occurred." }, 500);
+        return json({ error: "An internal server error occurred." }, 500);
       } else {
-        return c.json({ error: "unknown error occurred." }, 418);
+        return json({ error: "unknown error occurred." }, 418);
       }
     }
-  });
+  }
 
+  const routePath = `${REQUESTING_BASE_URL}/*`;
   console.log(
     `\n🚀 Requesting server listening for POST requests at base path of ${routePath}`,
   );
 
-  Bun.serve({ port: PORT, fetch: app.fetch });
+  return Bun.serve({
+    port: PORT,
+    async fetch(req: Request): Promise<Response> {
+      // Answer CORS preflight requests without touching any handler.
+      if (req.method === "OPTIONS") {
+        return new Response(null, { status: 204, headers: CORS_HEADERS });
+      }
+
+      const { pathname } = new URL(req.url);
+
+      if (req.method === "POST" && pathname.startsWith(REQUESTING_BASE_URL)) {
+        const route = passthrough.get(pathname);
+        if (route) return handlePassthrough(req, route);
+        return handleRequesting(req, pathname);
+      }
+
+      return json({ error: "Not found." }, 404);
+    },
+  });
 }

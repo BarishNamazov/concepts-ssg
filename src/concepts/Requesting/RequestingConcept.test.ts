@@ -1,0 +1,167 @@
+import { afterAll, describe, expect, test } from "bun:test";
+import { setupTestDb } from "@utils/testing.ts";
+import type { ID } from "@utils/types.ts";
+
+/**
+ * These tests cover the `RequestingConcept` class (the request/respond/await
+ * lifecycle) as well as the Bun-native HTTP server returned by
+ * `startRequestingServer`.
+ *
+ * Environment configuration is read at module load time inside
+ * `RequestingConcept.ts`, so any env var that must differ from the defaults is
+ * set *before* importing the module. We pick an uncommon `PORT` and disable
+ * response persistence to keep the suite deterministic and free of noise.
+ */
+process.env.REQUESTING_SAVE_RESPONSES = "false";
+process.env.PORT = "8753";
+
+const { default: RequestingConcept, startRequestingServer } = await import(
+  "./RequestingConcept.ts"
+);
+
+const mongo = await setupTestDb();
+afterAll(() => mongo.stop());
+
+describe("RequestingConcept lifecycle", () => {
+  test("request -> respond -> _awaitResponse resolves with payload", async () => {
+    const Requesting = new RequestingConcept(mongo.db);
+
+    const { request } = await Requesting.request({
+      path: "/posts/create",
+      content: "hello",
+    });
+    expect(typeof request).toBe("string");
+
+    // Respond before awaiting; the pending promise is resolved in place.
+    await Requesting.respond({ request, ok: true, value: 42 });
+
+    const result = await Requesting._awaitResponse({ request });
+    expect(result).toEqual([{ response: { ok: true, value: 42 } }]);
+  });
+
+  test("respond then await also works when await happens first", async () => {
+    const Requesting = new RequestingConcept(mongo.db);
+    const { request } = await Requesting.request({ path: "/x" });
+
+    // Kick off the await, then respond asynchronously.
+    const awaiting = Requesting._awaitResponse({ request });
+    await Requesting.respond({ request, done: true });
+
+    expect(await awaiting).toEqual([{ response: { done: true } }]);
+  });
+
+  test("_awaitResponse for an unknown request throws", async () => {
+    const Requesting = new RequestingConcept(mongo.db);
+    await expect(
+      Requesting._awaitResponse({ request: "does-not-exist" as ID }),
+    ).rejects.toThrow(/not pending or does not exist/);
+  });
+
+  test("_awaitResponse rejects with a timeout when no response arrives", async () => {
+    // The timeout is captured at construction, so set it small beforehand.
+    const previous = process.env.REQUESTING_TIMEOUT;
+    process.env.REQUESTING_TIMEOUT = "50";
+    // A non-literal specifier with a cache-busting query forces Bun to
+    // re-evaluate the module so the new REQUESTING_TIMEOUT is picked up.
+    const spec = "./RequestingConcept.ts?timeout-test";
+    const { default: FreshRequesting } = await import(spec);
+    const Requesting = new FreshRequesting(mongo.db);
+
+    const { request } = await Requesting.request({ path: "/never" });
+    await expect(Requesting._awaitResponse({ request })).rejects.toThrow(
+      /timed out/,
+    );
+
+    if (previous === undefined) delete process.env.REQUESTING_TIMEOUT;
+    else process.env.REQUESTING_TIMEOUT = previous;
+  });
+});
+
+describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
+  /** A trivial public concept used to exercise a passthrough route. */
+  class EchoConcept {
+    async echo(body: { message?: string }): Promise<{ echoed: unknown }> {
+      return { echoed: body.message ?? null };
+    }
+  }
+
+  test("passthrough route, catch-all request, CORS, and 404", async () => {
+    const Requesting = new RequestingConcept(mongo.db);
+
+    // The catch-all path drives Requesting.request and waits for a respond.
+    // We simulate a synchronization by responding as soon as a request lands.
+    const originalRequest = Requesting.request.bind(Requesting);
+    Requesting.request = async (inputs) => {
+      const result = await originalRequest(inputs);
+      // Respond on the next tick, echoing the received path back.
+      queueMicrotask(() => {
+        void Requesting.respond({
+          request: result.request,
+          path: inputs.path,
+          handled: true,
+        });
+      });
+      return result;
+    };
+
+    const server = startRequestingServer({
+      Requesting,
+      db: mongo.db,
+      client: mongo.client,
+      Engine: {},
+      Echo: new EchoConcept(),
+    });
+
+    const base = `http://localhost:${server.port}/api`;
+
+    try {
+      // 1. Passthrough route hits the concept method directly.
+      const passRes = await fetch(`${base}/Echo/echo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "hi" }),
+      });
+      expect(passRes.status).toBe(200);
+      expect(passRes.headers.get("Access-Control-Allow-Origin")).toBe("*");
+      expect(await passRes.json()).toEqual({ echoed: "hi" });
+
+      // 2. Catch-all path flows through Requesting.request/_awaitResponse.
+      const catchRes = await fetch(`${base}/posts/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "t" }),
+      });
+      expect(catchRes.status).toBe(200);
+      expect(await catchRes.json()).toEqual({
+        path: "/posts/create",
+        handled: true,
+      });
+
+      // 3. Invalid (non-object) body yields a 400.
+      const badRes = await fetch(`${base}/posts/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "5",
+      });
+      expect(badRes.status).toBe(400);
+      expect(await badRes.json()).toEqual({
+        error: "Invalid request body. Must be a JSON object.",
+      });
+
+      // 4. CORS preflight is answered with 204 + headers.
+      const preflight = await fetch(`${base}/posts/create`, {
+        method: "OPTIONS",
+      });
+      expect(preflight.status).toBe(204);
+      expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe("*");
+
+      // 5. Unmatched routes return 404.
+      const notFound = await fetch(`http://localhost:${server.port}/`, {
+        method: "GET",
+      });
+      expect(notFound.status).toBe(404);
+    } finally {
+      server.stop(true);
+    }
+  });
+});
