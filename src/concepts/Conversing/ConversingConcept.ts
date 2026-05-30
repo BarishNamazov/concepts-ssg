@@ -157,6 +157,37 @@ export default class ConversingConcept {
   }
 
   /**
+   * _getConversations (): (conversation: {conversation: Conversation, root: Node, item: Item, createdAt: DateTime})
+   *
+   * **requires** true
+   *
+   * **effects** returns every Conversation with its id, its root Node, the Item
+   * placed at the root, and its `createdAt`, ordered by `createdAt` descending
+   * (newest first)
+   */
+  async _getConversations(): Promise<
+    {
+      conversation: Conversation;
+      root: Node;
+      item: Item;
+      createdAt: Date;
+    }[]
+  > {
+    const convos = await this.conversations.find({})
+      .sort({ createdAt: -1 }).toArray();
+    const roots = await this.nodes.find({
+      _id: { $in: convos.map((c) => c.root) },
+    }).toArray();
+    const itemByNode = new Map(roots.map((n) => [n._id, n.item]));
+    return convos.map((c) => ({
+      conversation: c._id,
+      root: c.root,
+      item: itemByNode.get(c.root) as Item,
+      createdAt: c.createdAt,
+    }));
+  }
+
+  /**
    * _getNodeByItem (item: Item): (node: Node)
    *
    * **requires** true

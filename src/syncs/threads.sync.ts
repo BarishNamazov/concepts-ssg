@@ -16,8 +16,10 @@ import {
   Formatting,
   Linking,
   Posting,
+  Reacting,
   Requesting,
   Sessioning,
+  Tagging,
   Tracking,
 } from "@concepts";
 
@@ -353,7 +355,7 @@ export const PostEditInvalidSession: Sync = (
 // --- posts/delete (author-only, cascades) ---
 
 export const PostDeleteRequest: Sync = (
-  { request, session, post, user, author },
+  { request, session, post, user, author, node, reply, replies },
 ) => ({
   when: actions([
     Requesting.request,
@@ -363,9 +365,48 @@ export const PostDeleteRequest: Sync = (
   where: async (frames) => {
     frames = await frames.query(Sessioning._getUser, { session }, { user });
     frames = await frames.query(Posting._getAuthor, { post }, { author });
-    return frames.filter(($) => $[author] === $[user]);
+    frames = frames.filter(($) => $[author] === $[user]);
+    const [authored] = frames;
+    if (authored === undefined) return frames;
+    frames = await frames.query(
+      Conversing._getNodeByItem,
+      { item: post },
+      { node },
+    );
+    frames = await frames.query(Conversing._getReplies, { node }, { reply });
+    frames = frames.aggregate(authored, [reply], replies);
+    return frames.filter(($) => ($[replies] as unknown[]).length === 0);
   },
   then: actions([Posting.delete, { post }]),
+});
+
+export const PostDeleteHasReplies: Sync = (
+  { request, session, post, user, author, node, reply, replies },
+) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/posts/delete", session, post },
+    { request },
+  ]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._getUser, { session }, { user });
+    frames = await frames.query(Posting._getAuthor, { post }, { author });
+    frames = frames.filter(($) => $[author] === $[user]);
+    const [authored] = frames;
+    if (authored === undefined) return frames;
+    frames = await frames.query(
+      Conversing._getNodeByItem,
+      { item: post },
+      { node },
+    );
+    frames = await frames.query(Conversing._getReplies, { node }, { reply });
+    frames = frames.aggregate(authored, [reply], replies);
+    return frames.filter(($) => ($[replies] as unknown[]).length > 0);
+  },
+  then: actions([
+    Requesting.respond,
+    { request, error: "Cannot delete a post that has replies." },
+  ]),
 });
 
 export const PostDeleteClearsFormatting: Sync = ({ request, post }) => ({
@@ -374,6 +415,22 @@ export const PostDeleteClearsFormatting: Sync = ({ request, post }) => ({
     [Posting.delete, {}, { post }],
   ),
   then: actions([Formatting.clear, { target: post }]),
+});
+
+export const PostDeleteClearsReactions: Sync = ({ request, post }) => ({
+  when: actions(
+    [Requesting.request, { path: "/posts/delete" }, { request }],
+    [Posting.delete, {}, { post }],
+  ),
+  then: actions([Reacting.clearTarget, { target: post }]),
+});
+
+export const PostDeleteClearsTags: Sync = ({ request, post }) => ({
+  when: actions(
+    [Requesting.request, { path: "/posts/delete" }, { request }],
+    [Posting.delete, {}, { post }],
+  ),
+  then: actions([Tagging.clearTarget, { target: post }]),
 });
 
 export const PostDeleteUnregisters: Sync = ({ request, post }) => ({
@@ -447,7 +504,39 @@ export const PostDeleteInvalidSession: Sync = (
   ]),
 });
 
-// --- posts/byAuthor: public listing ---
+// --- threads/list: a newest-first feed of conversation roots ---
+
+export const ThreadListResponse: Sync = (
+  { request, conversation, root, item, createdAt, post, conversations },
+) => ({
+  when: actions([
+    Requesting.request,
+    { path: "/threads/list" },
+    { request },
+  ]),
+  where: async (frames) => {
+    const [base] = frames;
+    frames = await frames.query(
+      Conversing._getConversations,
+      {},
+      { conversation, root, item, createdAt },
+    );
+    frames = await frames.query(Posting._getPost, { post: item }, { post });
+    frames = frames.aggregate(
+      base,
+      [conversation, root, item, createdAt, post],
+      conversations,
+    );
+    return frames.map(($) => ({
+      ...$,
+      [conversations]: ($[conversations] as { createdAt: Date }[]).slice().sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    }));
+  },
+  then: actions([Requesting.respond, { request, conversations }]),
+});
 
 export const PostsByAuthorResponse: Sync = (
   { request, author, post, posts },

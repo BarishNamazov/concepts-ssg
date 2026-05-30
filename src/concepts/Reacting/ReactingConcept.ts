@@ -90,6 +90,21 @@ export default class ReactingConcept {
   }
 
   /**
+   * clearTarget (target: Target): (target: Target)
+   *
+   * **requires** true
+   *
+   * **effects** removes every Reaction on the given `target` from the state;
+   * returns `target`
+   */
+  async clearTarget(
+    { target }: { target: Target },
+  ): Promise<{ target: Target }> {
+    await this.reactions.deleteMany({ target });
+    return { target };
+  }
+
+  /**
    * _getReactionsForTarget (target: Target): (reaction: {reaction: Reaction, user: User, kind: String})
    *
    * **requires** true

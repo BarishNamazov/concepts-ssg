@@ -98,6 +98,15 @@ export type ThreadNode = Prettify<
  */
 export type PostView = Prettify<PostRecord & RenderedRow>;
 
+/**
+ * One entry of the `/threads/list` feed: a conversation root (as returned by
+ * Conversing's `_getConversations`) enriched with the root post's record.
+ */
+export type ConversationSummary = Prettify<
+  & QueryRow<ConversingConcept, "_getConversations">
+  & { post: PostRecord }
+>;
+
 // --- The contract ---------------------------------------------------------
 
 /**
@@ -129,6 +138,10 @@ export interface ApiContract {
       & QueryRow<AuthenticatingConcept, "_getById">
       & ProfileRow
     >;
+  };
+  "/auth/changePassword": {
+    input: { session: string; oldPassword: string; newPassword: string };
+    output: ActionOk<AuthenticatingConcept, "changePassword">;
   };
 
   // Profiles
@@ -167,6 +180,10 @@ export interface ApiContract {
   "/threads/get": {
     input: { conversation: string };
     output: { thread: ThreadNode[] };
+  };
+  "/threads/list": {
+    input: Record<string, never>;
+    output: { conversations: ConversationSummary[] };
   };
   "/posts/get": {
     input: { post: string };

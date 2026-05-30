@@ -142,6 +142,22 @@ export default class TaggingConcept {
   }
 
   /**
+   * clearTarget (target: Target): (target: Target)
+   *
+   * **requires** true
+   *
+   * **effects** removes the given `target` from the set of Targets, so it no
+   * longer bears any tags (the Tags themselves are left intact); returns
+   * `target`
+   */
+  async clearTarget(
+    { target }: { target: Target },
+  ): Promise<{ target: Target }> {
+    await this.targets.deleteOne({ _id: target });
+    return { target };
+  }
+
+  /**
    * _getTags (target: Target): (tag: {tag: Tag, name: String})
    *
    * **requires** true
