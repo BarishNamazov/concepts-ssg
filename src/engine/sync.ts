@@ -6,9 +6,9 @@
 */
 import { $vars } from "./vars.ts";
 import { inspect, uuid } from "./util.ts";
-import { ActionConcept, ActionRecord } from "./actions.ts";
+import { ActionConcept, type ActionRecord } from "./actions.ts";
 import { Frames } from "./frames.ts";
-import {
+import type {
   ActionList,
   ActionPattern,
   Frame,
@@ -55,7 +55,6 @@ export class SyncConcept {
     new Map();
   public Action;
   public logging = Logging.TRACE;
-  // deno-lint-ignore ban-types
   public boundActions: Map<Function, InstrumentedAction> = new Map();
   constructor(actionConcept: ActionConcept = new ActionConcept()) {
     this.Action = actionConcept;

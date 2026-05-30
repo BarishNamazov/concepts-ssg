@@ -5,7 +5,7 @@ The Requesting concept offers a traditional entrypoint to an application built w
 **Setup**
 1. Include the `Requesting` source folder as `src/concepts/Requesting` (already done if you've forked/cloned this repository).
 2. Configure any environment variables you'd like change by adding/editing in your `.env` file (port, timeout, etc.)
-3. Run `deno run start`, and your server will be live!
+3. Run `bun run start`, and your server will be live!
 
 # Configuration
 The following environment variables are available:
@@ -66,7 +66,7 @@ Allowing passthrough routes is a natural default that says, "anyone can freely a
 
 then what you need is to **reify requests**. This is the purpose of the Requesting concept: to allow parties to formulate requests that require a response. In other words, we are preventing parties from directly interacting with concepts and giving them the opportunity to form a tangible request instead.
 
-By default, all concepts and their actions/queries will automatically be discovered, and registered as **unverified routes**. You will see a log of these when you first start the server through `deno run start`. 
+By default, all concepts and their actions/queries will automatically be discovered, and registered as **unverified routes**. You will see a log of these when you first start the server through `bun run start`. 
 
 **Configuring Passthrough**
 1. Open [passthrough.ts](passthrough.ts) to configure passthrough. 

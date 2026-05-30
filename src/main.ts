@@ -1,7 +1,7 @@
 /**
  * Entry point for an application built with concepts + synchronizations.
  * Requires the Requesting concept as a bootstrap concept.
- * Please run "deno run import" or "generate_imports.ts" to prepare "@concepts".
+ * Please run "bun run build" (generate_imports.ts) to prepare "@concepts".
  */
 import * as concepts from "@concepts";
 

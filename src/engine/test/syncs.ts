@@ -1,5 +1,5 @@
 /* Sync declarations for tests, designed to be clean + declarative */
-import { actions, Frames, Vars } from "../mod.ts";
+import { actions, type Frames, type Vars } from "../mod.ts";
 import {
   ButtonConcept,
   CounterConcept,

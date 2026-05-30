@@ -1,4 +1,4 @@
-import { Vars } from "./types.ts";
+import type { Vars } from "./types.ts";
 
 // Special object that returns new Symbols when accessed
 export const $vars = new Proxy({} as Vars, {

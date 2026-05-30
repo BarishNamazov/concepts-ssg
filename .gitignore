@@ -1,6 +1,10 @@
 .env
 .DS_Store
 **/.DS_Store
-ctx
-ctx.exe
+node_modules
 .obsidian/workspace.json
+
+# Auto-generated barrel files (produced by `bun run build`)
+src/concepts/concepts.ts
+src/concepts/test_concepts.ts
+src/syncs/syncs.ts

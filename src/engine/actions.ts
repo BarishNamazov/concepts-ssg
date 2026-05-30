@@ -1,7 +1,6 @@
 import { uuid } from "./util.ts";
 export interface ActionRecord {
   id?: string;
-  // deno-lint-ignore ban-types
   action: Function;
   concept: object;
   input: Record<string, unknown>;

@@ -1,5 +1,5 @@
 /* Minimal mock concepts used for testing */
-import { Empty } from "../types.ts";
+import type { Empty } from "../types.ts";
 
 export class CounterConcept {
   public count = 0;

@@ -28,7 +28,6 @@ export interface Synchronization extends SyncDeclaration {
 
 export interface InstrumentedAction extends Function {
   concept?: object;
-  // deno-lint-ignore ban-types
   action?: Function;
 }
 export type Vars = Record<string, symbol>;

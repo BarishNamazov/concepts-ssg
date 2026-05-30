@@ -20,27 +20,30 @@ After the concept specification and file, create another test file that properly
 
 # Test implementation
 
-While testing, use the `testDb` function, which returns a tuple of the database and client so that you can close it.
+Tests run on Bun's built-in test runner (`bun test`). A test file lives next to the concept as `src/concepts/{Name}/{Name}Concept.test.ts`.
+
+Use the `setupTestDb` helper from `@utils/testing.ts`, which starts an isolated in-memory MongoDB (`mongodb-memory-server`) and returns a connected, empty database. Instantiate the concept directly against that database, and tear the server down in an `afterAll` hook:
 
 ```typescript
-import { testDb } from "@utils/database.ts";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { setupTestDb } from "@utils/testing.ts";
+import LabelingConcept from "./LabelingConcept.ts";
 
-Deno.test("...", async () => {
-  const [db, client] = await testDb();
+const mongo = await setupTestDb();
+const Labeling = new LabelingConcept(mongo.db);
 
-  // ... tests
+afterAll(() => mongo.stop());
 
-  await client.close();
+describe("Labeling", () => {
+  test("addLabel adds a label to an item", async () => {
+    // ... arrange, act, assert with expect(...)
+  });
 });
 ```
 
-The database is already automatically dropped before every test file using the `Deno.test.beforeAll` hook: do not include any additional manipulation of the database for this purpose.
+Because each test file gets its own in-memory server, the database starts empty. If you need a clean slate between tests within a file, clear the relevant collections in a `beforeEach` hook.
 
-Use the Deno.test framework, splitting by appropriate test steps and describing each behavior. Import helpers from:
-
-```typescript
-import { assertEquals } from "jsr:@std/assert"; // or any other utility from the library
-```
+Assertions use Bun's `expect` API (`expect(value).toBe(...)`, `.toEqual(...)`, `.toThrow()`, etc.).
 
 # Legible testing
 

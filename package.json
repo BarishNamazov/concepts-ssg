@@ -1,0 +1,23 @@
+{
+  "name": "software-design-class",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A forum application built with concept design, running on Bun.",
+  "scripts": {
+    "build": "bun run src/utils/generate_imports.ts",
+    "start": "bun run src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.12.23",
+    "mongodb": "^7.2.0",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "mongodb-memory-server": "^11.2.0",
+    "typescript": "^5.9.0"
+  }
+}

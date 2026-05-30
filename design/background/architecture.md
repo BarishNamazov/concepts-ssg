@@ -65,6 +65,6 @@ By creating the `Sessioning` and `Posting` concepts and including this synchroni
 
 ## Initialization
 
-1. Configure any environment variables you need in `.env`
-2. Build command: `deno run build` to scan and automatically generate imports for concepts/syncs.
-3. Start command: `deno run start` to begin your server.
+1. Configure any environment variables you need in `.env` (Bun loads this automatically).
+2. Build command: `bun run build` to scan and automatically generate imports for concepts/syncs.
+3. Start command: `bun run start` to begin your server.

@@ -1,34 +1,32 @@
-import { Hono } from "jsr:@hono/hono";
-import { cors } from "jsr:@hono/hono/cors";
-import { Collection, Db } from "npm:mongodb";
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { Collection, Db } from "mongodb";
 import { freshID } from "@utils/database.ts";
-import { ID } from "@utils/types.ts";
+import type { ID } from "@utils/types.ts";
 import { exclusions, inclusions } from "./passthrough.ts";
-import "jsr:@std/dotenv/load";
 
 /**
  * # Requesting concept configuration
- * The following environment variables are available:
+ * The following environment variables are available (Bun loads `.env`):
  *
- * - PORT: the port to the server binds, default 10000
+ * - PORT: the port to the server binds, default 8000
  * - REQUESTING_BASE_URL: the base URL prefix for api requests, default "/api"
  * - REQUESTING_TIMEOUT: the timeout for requests, default 10000ms
  * - REQUESTING_SAVE_RESPONSES: whether to persist responses or not, default true
  */
-const PORT = parseInt(Deno.env.get("PORT") ?? "8000", 10);
-const REQUESTING_BASE_URL = Deno.env.get("REQUESTING_BASE_URL") ?? "/api";
+const PORT = parseInt(process.env.PORT ?? "8000", 10);
+const REQUESTING_BASE_URL = process.env.REQUESTING_BASE_URL ?? "/api";
 const REQUESTING_TIMEOUT = parseInt(
-  Deno.env.get("REQUESTING_TIMEOUT") ?? "10000",
+  process.env.REQUESTING_TIMEOUT ?? "10000",
   10,
 );
 
 // TODO: make sure you configure this environment variable for proper CORS configuration
-const REQUESTING_ALLOWED_DOMAIN = Deno.env.get("REQUESTING_ALLOWED_DOMAIN") ??
-  "*";
+const REQUESTING_ALLOWED_DOMAIN = process.env.REQUESTING_ALLOWED_DOMAIN ?? "*";
 
 // Choose whether or not to persist responses
-const REQUESTING_SAVE_RESPONSES = Deno.env.get("REQUESTING_SAVE_RESPONSES") ??
-  true;
+const REQUESTING_SAVE_RESPONSES =
+  (process.env.REQUESTING_SAVE_RESPONSES ?? "true") !== "false";
 
 const PREFIX = "Requesting" + ".";
 
@@ -150,7 +148,7 @@ export default class RequestingConcept {
       );
     }
 
-    let timeoutId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(
         () =>
@@ -183,10 +181,8 @@ export default class RequestingConcept {
  * @param concepts The complete instantiated concepts import from "@concepts"
  */
 export function startRequestingServer(
-  // deno-lint-ignore no-explicit-any
   concepts: Record<string, any>,
 ) {
-  // deno-lint-ignore no-unused-vars
   const { Requesting, client, db, Engine, ...instances } = concepts;
   if (!(Requesting instanceof RequestingConcept)) {
     throw new Error("Requesting concept missing or broken.");
@@ -301,5 +297,5 @@ export function startRequestingServer(
     `\n🚀 Requesting server listening for POST requests at base path of ${routePath}`,
   );
 
-  Deno.serve({ port: PORT }, app.fetch);
+  Bun.serve({ port: PORT, fetch: app.fetch });
 }

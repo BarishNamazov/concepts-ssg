@@ -13,7 +13,7 @@ import { actions, Sync } from "@engine";
 import { Button, Counter, Notification } from "@concepts";
 ```
 
-If you have an error in importing your concepts, don't forget to run `deno run build` to automatically prepare the `@concepts` import that will scan your `src/concepts/` directory for your concepts and generate the proper imports.
+If you have an error in importing your concepts, don't forget to run `bun run build` to automatically prepare the `@concepts` import that will scan your `src/concepts/` directory for your concepts and generate the proper imports.
 
 ## Example
 

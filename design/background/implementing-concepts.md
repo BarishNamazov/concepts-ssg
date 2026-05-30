@@ -19,7 +19,7 @@ For our specific implementation, we will use MongoDB as the database. Each piece
 
 - Make sure that each action/method preserves its **requires**, and performs the specified **effects** in terms of its updates on the MongoDB collection. 
 - It should be possible to confirm any expectations for what the state looks like when described in **effects** or **principle** using the chosen set of **queries**.
-- Use the Deno runtime to minimize setup, and qualified imports such as `import { Collection, Db } from "npm:mongodb";`
+- Use the Bun runtime to minimize setup, and bare npm imports such as `import { Collection, Db } from "mongodb";`
 
 # approach: steps to implementation
 
@@ -83,7 +83,7 @@ deleteLabel (item: Item, label: Label)
 you would have the following class properties and constructor:
 
 ```typescript
-import { Collection, Db } from "npm:mongodb";
+import { Collection, Db } from "mongodb";
 import { Empty, ID } from "@utils/types.ts";
 
 // Declare collection prefix, use concept name
