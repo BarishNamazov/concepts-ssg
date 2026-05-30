@@ -1,0 +1,23 @@
+{
+    "imports": {
+        "@concepts/": "./src/concepts/",
+        "@concepts": "./src/concepts/concepts.ts",
+        "@test-concepts": "./src/concepts/test_concepts.ts",
+        "@utils/": "./src/utils/",
+        "@engine": "./src/engine/mod.ts",
+        "@syncs": "./src/syncs/syncs.ts"
+    },
+    "tasks": {
+        "start": "deno run --allow-net --allow-write --allow-read --allow-sys --allow-env src/main.ts",
+        "import": "deno run --allow-read --allow-write --allow-env src/utils/generate_imports.ts",
+        "build": "deno run import"
+    },
+    "lint": {
+        "rules": {
+            "exclude": [
+                "no-import-prefix",
+                "no-unversioned-import"
+            ]
+        }
+    }
+}
