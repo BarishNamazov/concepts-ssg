@@ -1,0 +1,8 @@
+{
+  "//": "Local config for the demo only. The example is intentionally OUTSIDE the root tsconfig's `include` (just `src`/`sdk`), because browser code needs the DOM lib the backend config omits, so the root `bun run typecheck` never sees this folder. This config extends the root (inheriting its `@`-path aliases so the SDK's type imports resolve) and only adds the DOM libs; run `bun x tsc -p example-client` to type-check the demo on its own.",
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ESNext", "DOM", "DOM.Iterable"]
+  },
+  "include": ["."]
+}
