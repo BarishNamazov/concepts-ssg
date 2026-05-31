@@ -23,5 +23,5 @@
       "@syncs": ["./src/syncs/syncs.ts"]
     }
   },
-  "include": ["src", "sdk"]
+  "include": ["src"]
 }
