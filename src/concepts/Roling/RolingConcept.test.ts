@@ -70,9 +70,9 @@ describe("Roling", () => {
     const { grant } = ok(await Roling.grant({ user: u, context: c, role }));
     expect(grant).toBeString();
     // granting the same (user, context, role) again fails
-    expect(
-      await Roling.grant({ user: u, context: c, role }),
-    ).toHaveProperty("error");
+    expect(await Roling.grant({ user: u, context: c, role })).toHaveProperty(
+      "error",
+    );
   });
 
   test("revoke requires an existing grant and returns the removed id", async () => {
@@ -81,16 +81,16 @@ describe("Roling", () => {
     const { role } = ok(
       await Roling.defineRole({ name: "mod", capabilities: ["ban"] }),
     );
-    expect(
-      await Roling.revoke({ user: u, context: c, role }),
-    ).toHaveProperty("error");
+    expect(await Roling.revoke({ user: u, context: c, role })).toHaveProperty(
+      "error",
+    );
     const { grant } = ok(await Roling.grant({ user: u, context: c, role }));
     const removed = ok(await Roling.revoke({ user: u, context: c, role }));
     expect(removed.grant).toBe(grant);
     // revoking again fails since the grant is gone
-    expect(
-      await Roling.revoke({ user: u, context: c, role }),
-    ).toHaveProperty("error");
+    expect(await Roling.revoke({ user: u, context: c, role })).toHaveProperty(
+      "error",
+    );
   });
 
   test("_hasCapability is scoped to the context and is satisfied by any role", async () => {
@@ -107,18 +107,30 @@ describe("Roling", () => {
     ok(await Roling.grant({ user: u, context: c1, role: reader.role }));
     // a capability from any granted role is allowed
     expect(
-      await Roling._hasCapability({ user: u, context: c1, capability: "write" }),
+      await Roling._hasCapability({
+        user: u,
+        context: c1,
+        capability: "write",
+      }),
     ).toEqual([{ allowed: true }]);
     expect(
       await Roling._hasCapability({ user: u, context: c1, capability: "read" }),
     ).toEqual([{ allowed: true }]);
     // an ungranted capability is refused
     expect(
-      await Roling._hasCapability({ user: u, context: c1, capability: "admin" }),
+      await Roling._hasCapability({
+        user: u,
+        context: c1,
+        capability: "admin",
+      }),
     ).toEqual([{ allowed: false }]);
     // grants do not leak across contexts
     expect(
-      await Roling._hasCapability({ user: u, context: c2, capability: "write" }),
+      await Roling._hasCapability({
+        user: u,
+        context: c2,
+        capability: "write",
+      }),
     ).toEqual([{ allowed: false }]);
   });
 
@@ -128,7 +140,9 @@ describe("Roling", () => {
     const a = ok(
       await Roling.defineRole({ name: "alpha", capabilities: ["a"] }),
     );
-    const b = ok(await Roling.defineRole({ name: "beta", capabilities: ["b"] }));
+    const b = ok(
+      await Roling.defineRole({ name: "beta", capabilities: ["b"] }),
+    );
     ok(await Roling.grant({ user: u, context: c, role: a.role }));
     ok(await Roling.grant({ user: u, context: c, role: b.role }));
     const roles = await Roling._getRoles({ user: u, context: c });
@@ -147,7 +161,13 @@ describe("Roling", () => {
     );
     ok(await Roling.grant({ user: user("u1"), context: c, role }));
     ok(await Roling.grant({ user: user("u2"), context: c, role }));
-    ok(await Roling.grant({ user: user("u3"), context: context("elsewhere"), role }));
+    ok(
+      await Roling.grant({
+        user: user("u3"),
+        context: context("elsewhere"),
+        role,
+      }),
+    );
     const users = await Roling._getUsersWithRole({ context: c, role });
     expect(users).toHaveLength(2);
     expect(users).toContainEqual({ user: user("u1") });
