@@ -5,6 +5,7 @@
  *   POST /threads/create { session, content }          -> { post, conversation, node }
  *   POST /threads/reply  { session, parent, content }   -> { post, node }
  *   POST /threads/get    { conversation }               -> { thread }
+ *   POST /threads/list   {}                              -> { conversations }
  *   POST /posts/get      { post }                       -> { post }
  *   POST /posts/edit     { session, post, content }     -> { post }
  *   POST /posts/delete   { session, post }              -> { post }

@@ -83,6 +83,75 @@ describe("auth synchronizations", () => {
     const me = await app.send("/auth/me", { session: "does-not-exist" });
     expect(me.error).toBeDefined();
   });
+
+  test("changePassword updates the credential and old password stops working", async () => {
+    const reg = await app.send("/auth/register", {
+      username: "pwd_alice",
+      password: "old",
+      displayName: "Alice",
+    });
+    const { session } = await app.send("/auth/login", {
+      username: "pwd_alice",
+      password: "old",
+    });
+
+    const res = await app.send("/auth/changePassword", {
+      session,
+      oldPassword: "old",
+      newPassword: "new",
+    });
+    expect(res.user).toBe(reg.user);
+
+    // The new password authenticates; the old one no longer does.
+    const withNew = await app.send("/auth/login", {
+      username: "pwd_alice",
+      password: "new",
+    });
+    expect(withNew.session).toBeDefined();
+    const withOld = await app.send("/auth/login", {
+      username: "pwd_alice",
+      password: "old",
+    });
+    expect(withOld.error).toBeDefined();
+    expect(withOld.session).toBeUndefined();
+  });
+
+  test("changePassword with the wrong old password errors and keeps the credential", async () => {
+    await app.send("/auth/register", {
+      username: "pwd_bob",
+      password: "secret",
+      displayName: "Bob",
+    });
+    const { session } = await app.send("/auth/login", {
+      username: "pwd_bob",
+      password: "secret",
+    });
+
+    const res = await app.send("/auth/changePassword", {
+      session,
+      oldPassword: "wrong",
+      newPassword: "new",
+    });
+    expect(res.error).toBeDefined();
+    expect(res.user).toBeUndefined();
+
+    // The original password still works; nothing changed.
+    const stillWorks = await app.send("/auth/login", {
+      username: "pwd_bob",
+      password: "secret",
+    });
+    expect(stillWorks.session).toBeDefined();
+  });
+
+  test("changePassword with an invalid session errors", async () => {
+    const res = await app.send("/auth/changePassword", {
+      session: "nope",
+      oldPassword: "old",
+      newPassword: "new",
+    });
+    expect(res.error).toBe("Invalid or expired session.");
+    expect(res.user).toBeUndefined();
+  });
 });
 
 // --- helpers for the forum endpoints below ---
@@ -224,6 +293,48 @@ describe("thread / post synchronizations", () => {
   });
 });
 
+describe("thread list synchronizations", () => {
+  test("list with no conversations returns an empty feed", async () => {
+    const res = await app.send("/threads/list", {});
+    expect(res.conversations).toEqual([]);
+  });
+
+  test("list returns conversation roots newest-first, enriched with the root post", async () => {
+    const { user, session } = await registerAndLogin("l_alice");
+    const first = await app.send("/threads/create", {
+      session,
+      content: "first topic",
+    });
+    // Ensure a strictly later createdAt so the ordering is deterministic.
+    await new Promise((r) => setTimeout(r, 5));
+    const second = await app.send("/threads/create", {
+      session,
+      content: "second topic",
+    });
+    // A reply is not a conversation root and must not appear in the feed.
+    await app.send("/threads/reply", {
+      session,
+      parent: first.node,
+      content: "a reply",
+    });
+
+    const res = await app.send("/threads/list", {});
+    expect(res.conversations).toHaveLength(2);
+
+    // Newest-first: the second conversation comes before the first.
+    const [newest, oldest] = res.conversations;
+    expect(newest.conversation).toBe(second.conversation);
+    expect(newest.root).toBe(second.node);
+    expect(newest.item).toBe(second.post);
+    expect(newest.post.content).toBe("second topic");
+    expect(newest.post.author).toBe(user);
+
+    expect(oldest.conversation).toBe(first.conversation);
+    expect(oldest.item).toBe(first.post);
+    expect(oldest.post.content).toBe("first topic");
+  });
+});
+
 describe("post edit / delete synchronizations", () => {
   test("author can edit a post; re-renders and updates links", async () => {
     const { post } = await createPost("e_alice", "before");
@@ -293,6 +404,125 @@ describe("post edit / delete synchronizations", () => {
     expect(res.error).toBeDefined();
     const got = await app.send("/posts/get", { post });
     expect(got.post.content).toBe("keep");
+  });
+
+  test("cannot delete a post that has replies; deletes once the reply is gone", async () => {
+    const { session } = await registerAndLogin("d_guard");
+    const root = await app.send("/threads/create", {
+      session,
+      content: "root with a reply",
+    });
+    const reply = await app.send("/threads/reply", {
+      session,
+      parent: root.node,
+      content: "child",
+    });
+
+    // The root has a reply, so it cannot be deleted.
+    const blocked = await app.send("/posts/delete", {
+      session,
+      post: root.post,
+    });
+    expect(blocked.error).toBe("Cannot delete a post that has replies.");
+    const stillThere = await app.send("/posts/get", { post: root.post });
+    expect(stillThere.post.content).toBe("root with a reply");
+
+    // Deleting the leaf reply succeeds, after which the root is deletable.
+    const leaf = await app.send("/posts/delete", { session, post: reply.post });
+    expect(leaf.post).toBe(reply.post);
+    const nowOk = await app.send("/posts/delete", { session, post: root.post });
+    expect(nowOk.post).toBe(root.post);
+  });
+
+  test("deleting a post cascades across every concept", async () => {
+    const author = await registerAndLogin("d_cascade");
+    const reader = await registerAndLogin("d_reader");
+
+    // A root post and a reply that links back to it via [[..]].
+    const root = await app.send("/threads/create", {
+      session: author.session,
+      content: "cascade root",
+    });
+    const reply = await app.send("/threads/reply", {
+      session: author.session,
+      parent: root.node,
+      content: `mentions [[${root.post}]]`,
+    });
+    const target = reply.post;
+
+    // Decorate the reply: a reaction and a tag.
+    await app.send("/reactions/add", {
+      session: author.session,
+      target,
+      kind: "like",
+    });
+    const tag = await app.send("/tags/create", {
+      session: author.session,
+      name: "topic",
+    });
+    await app.send("/tags/add", { session: author.session, target, tag: tag.tag });
+
+    // Sanity: everything is in place before the delete.
+    expect(
+      (await app.send("/reactions/forTarget", { target })).reactions,
+    ).toHaveLength(1);
+    expect((await app.send("/tags/forTarget", { target })).tags).toHaveLength(1);
+    expect(
+      (await app.send("/tags/targets", { tag: tag.tag })).targets,
+    ).toEqual([{ target }]);
+    expect(
+      (await app.send("/links/forward", { source: target })).targets,
+    ).toEqual([{ target: root.post }]);
+    expect(
+      await app.concepts.Formatting._getRendered({ target }),
+    ).toHaveLength(1);
+    expect(
+      await app.concepts.Conversing._getNodeByItem({ item: target }),
+    ).toHaveLength(1);
+    const before = await app.send("/unread/count", {
+      session: reader.session,
+      scope: root.conversation,
+    });
+    expect(before.count).toBe(2);
+
+    // Delete the reply (a leaf node, so the guard allows it).
+    const res = await app.send("/posts/delete", {
+      session: author.session,
+      post: target,
+    });
+    expect(res.post).toBe(target);
+
+    // Reacting.clearTarget cleared the reactions.
+    expect(
+      (await app.send("/reactions/forTarget", { target })).reactions,
+    ).toEqual([]);
+    // Tagging.clearTarget cleared the tag application (both directions).
+    expect((await app.send("/tags/forTarget", { target })).tags).toEqual([]);
+    expect(
+      (await app.send("/tags/targets", { tag: tag.tag })).targets,
+    ).toEqual([]);
+    // Linking.clearLinks cleared the forward links from the deleted post.
+    expect(
+      (await app.send("/links/forward", { source: target })).targets,
+    ).toEqual([]);
+    // Formatting.clear removed the rendered source.
+    expect(
+      await app.concepts.Formatting._getRendered({ target }),
+    ).toEqual([]);
+    // Conversing.remove deleted the node placing the post.
+    expect(
+      await app.concepts.Conversing._getNodeByItem({ item: target }),
+    ).toEqual([]);
+    // Tracking.unregister removed the unread item from the scope (root remains).
+    const after = await app.send("/unread/count", {
+      session: reader.session,
+      scope: root.conversation,
+    });
+    expect(after.count).toBe(1);
+
+    // The root post is untouched.
+    expect((await app.send("/posts/get", { post: root.post })).post.content)
+      .toBe("cascade root");
   });
 });
 
