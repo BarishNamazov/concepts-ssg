@@ -1,4 +1,4 @@
-# Typed Requesting SDK contract
+# Typed Requesting SDK Contract
 
 > Status: implemented. Replaces the generated `src/syncs/contract.generated.ts`
 > design.
@@ -35,7 +35,7 @@ is a generic transport bound to that type by the caller.
 - `src/syncs/app.ts` composes the endpoint groups into `api`, exports
   `syncs = syncMap(api)`, and exposes `type ForumApi = ContractOf<typeof api>`.
 
-## Adding an endpoint
+## Adding An Endpoint
 
 1. Create a path builder in the relevant sync file:
    `const login = requestingEndpoint("/auth/login")`.

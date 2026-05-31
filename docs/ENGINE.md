@@ -24,7 +24,7 @@ read those for the concept catalogue and the endpoint set this engine wires up.
 The engine is intentionally **dynamically typed**: logic variables are `symbol`s
 and action inputs/outputs are `Mapping = Record<string, unknown>` (see
 `types.ts`). Static typing is layered back on top by the SDK contract — see
-[`docs/SDK_AUTOGEN.md`](SDK_AUTOGEN.md).
+[`docs/SDK_CONTRACT.md`](SDK_CONTRACT.md).
 
 ## The public `@engine` surface
 
@@ -319,5 +319,5 @@ list-endpoint `aggregate` pattern in `src/syncs/threads.sync.ts`.
   collections).
 - [`docs/API_AND_SDK.md`](API_AND_SDK.md) — the endpoint set and cross-concept
   wiring.
-- [`docs/SDK_AUTOGEN.md`](SDK_AUTOGEN.md) — how the typed SDK contract is derived
+- [`docs/SDK_CONTRACT.md`](SDK_CONTRACT.md) — how the typed SDK contract is derived
   from these syncs.

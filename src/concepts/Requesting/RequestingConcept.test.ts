@@ -78,14 +78,7 @@ describe("RequestingConcept lifecycle", () => {
 });
 
 describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
-  /** A trivial public concept used to exercise a passthrough route. */
-  class EchoConcept {
-    async echo(body: { message?: string }): Promise<{ echoed: unknown }> {
-      return { echoed: body.message ?? null };
-    }
-  }
-
-  test("passthrough route, catch-all request, CORS, and 404", async () => {
+  test("catch-all request, CORS, and 404", async () => {
     const Requesting = new RequestingConcept(mongo.db);
 
     // The catch-all path drives Requesting.request and waits for a respond.
@@ -109,23 +102,12 @@ describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
       db: mongo.db,
       client: mongo.client,
       Engine: {},
-      Echo: new EchoConcept(),
     });
 
     const base = `http://localhost:${server.port}/api`;
 
     try {
-      // 1. Passthrough route hits the concept method directly.
-      const passRes = await fetch(`${base}/Echo/echo`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "hi" }),
-      });
-      expect(passRes.status).toBe(200);
-      expect(passRes.headers.get("Access-Control-Allow-Origin")).toBe("*");
-      expect(await passRes.json()).toEqual({ echoed: "hi" });
-
-      // 2. Catch-all path flows through Requesting.request/_awaitResponse.
+      // 1. Catch-all path flows through Requesting.request/_awaitResponse.
       const catchRes = await fetch(`${base}/posts/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -137,7 +119,7 @@ describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
         handled: true,
       });
 
-      // 3. Invalid (non-object) body yields a 400.
+      // 2. Invalid (non-object) body yields a 400.
       const badRes = await fetch(`${base}/posts/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,14 +130,14 @@ describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
         error: "Invalid request body. Must be a JSON object.",
       });
 
-      // 4. CORS preflight is answered with 204 + headers.
+      // 3. CORS preflight is answered with 204 + headers.
       const preflight = await fetch(`${base}/posts/create`, {
         method: "OPTIONS",
       });
       expect(preflight.status).toBe(204);
       expect(preflight.headers.get("Access-Control-Allow-Origin")).toBe("*");
 
-      // 5. Unmatched routes return 404.
+      // 4. Unmatched routes return 404.
       const notFound = await fetch(`http://localhost:${server.port}/`, {
         method: "GET",
       });

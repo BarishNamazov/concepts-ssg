@@ -11,10 +11,10 @@ endpoint is a `POST {REQUESTING_BASE_URL}{path}` request whose JSON body is the
 endpoint input. A synchronization matches `Requesting.request` for that `path`,
 performs the work across concepts, and answers with `Requesting.respond`.
 
-We do **not** use passthrough routes for domain logic — every endpoint is an
-explicit sync so we can authorize via session, fan out across concepts (e.g.
-render markdown + register for unread tracking when a post is created), and shape
-responses. Passthrough stays disabled for concept actions (see `passthrough.ts`).
+There are no direct concept passthrough routes. Every endpoint is an explicit
+sync so we can authorize via session, fan out across concepts (e.g. render
+markdown + register for unread tracking when a post is created), shape responses,
+and infer the SDK contract from the same definitions used at runtime.
 
 ## Endpoint set (v1)
 

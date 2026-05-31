@@ -176,7 +176,7 @@ flowchart TD
 
 ## Multiple When Clauses: Handling Request Flow
 
-Some of the previous examples demonstrated **multiple actions in the when clause**. What does this mean? Consider a basic set of synchronizations for the included `LikertSurvey` concept in this repository:
+Some of the previous examples demonstrated **multiple actions in the when clause**. What does this mean? Consider a basic set of synchronizations for a hypothetical `LikertSurvey` concept:
 
 ```sync
 sync AddQuestionRequest

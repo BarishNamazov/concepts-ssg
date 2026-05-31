@@ -1,7 +1,6 @@
 import { Collection, Db } from "mongodb";
 import { freshID } from "@utils/database.ts";
 import type { ID } from "@utils/types.ts";
-import { exclusions, inclusions } from "./passthrough.ts";
 
 /**
  * # Requesting concept configuration
@@ -200,8 +199,8 @@ function json(data: unknown, status = 200): Response {
 
 /**
  * Parses a request body as JSON, returning a fallback when the body is empty
- * or malformed. Passthrough routes default to `{}`; the catch-all instead uses
- * `undefined` to signal "no valid object" so it can answer with a 400.
+ * or malformed. The Requesting route uses `undefined` as the fallback so it can
+ * reject invalid or missing object bodies with a 400.
  */
 async function readJsonBody<T>(req: Request, fallback: T): Promise<unknown | T> {
   try {
@@ -213,18 +212,11 @@ async function readJsonBody<T>(req: Request, fallback: T): Promise<unknown | T> 
   }
 }
 
-/** A registered passthrough route mapping a concept method onto an HTTP path. */
-interface PassthroughRoute {
-  conceptName: string;
-  method: string;
-  concept: Record<string, (body: unknown) => Promise<unknown>>;
-}
-
 /**
  * Starts the Bun-native web server that listens for incoming requests and pipes
- * them into the Requesting concept instance. Additionally, it allows passthrough
- * requests to concept actions by default. These should be verified intentionally
- * via the inclusions/exclusions in `passthrough.ts`.
+ * them into the Requesting concept instance. Every POST under the configured
+ * base URL becomes a `Requesting.request`; endpoint behavior is provided by
+ * explicit synchronizations.
  *
  * @param concepts The complete instantiated concepts import from "@concepts"
  * @param options Optional overrides. `port` lets callers (e.g. tests) bind a
@@ -236,77 +228,17 @@ export function startRequestingServer(
   concepts: Record<string, any>,
   options: { port?: number } = {},
 ) {
-  const { Requesting, client, db, Engine, ...instances } = concepts;
+  const { Requesting } = concepts;
   if (!(Requesting instanceof RequestingConcept)) {
     throw new Error("Requesting concept missing or broken.");
   }
 
   /**
-   * PASSTHROUGH ROUTES
-   *
-   * These routes register against every concept action and query.
-   * While convenient, you should confirm that they are either intentional
-   * inclusions and specify a reason, or if they should be excluded and
-   * handled by Requesting instead.
-   */
-
-  console.log("\nRegistering concept passthrough routes.");
-  const passthrough = new Map<string, PassthroughRoute>();
-  let unverified = false;
-  for (const [conceptName, concept] of Object.entries(instances)) {
-    const methods = Object.getOwnPropertyNames(
-      Object.getPrototypeOf(concept),
-    )
-      .filter((name) =>
-        name !== "constructor" &&
-        typeof (concept as Record<string, unknown>)[name] === "function"
-      );
-    for (const method of methods) {
-      const route = `${REQUESTING_BASE_URL}/${conceptName}/${method}`;
-      if (exclusions.includes(route)) continue;
-      const included = route in inclusions;
-      if (!included) unverified = true;
-      const msg = included
-        ? `  -> ${route}`
-        : `WARNING - UNVERIFIED ROUTE: ${route}`;
-
-      passthrough.set(route, {
-        conceptName,
-        method,
-        concept: concept as PassthroughRoute["concept"],
-      });
-      console.log(msg);
-    }
-  }
-  const passthroughFile = "./src/concepts/Requesting/passthrough.ts";
-  if (unverified) {
-    console.log(`FIX: Please verify routes in: ${passthroughFile}`);
-  }
-
-  /**
-   * Handles a registered passthrough route: reads the JSON body (default `{}`),
-   * invokes the concept method, and returns its result as JSON.
-   */
-  async function handlePassthrough(
-    req: Request,
-    { conceptName, method, concept }: PassthroughRoute,
-  ): Promise<Response> {
-    try {
-      const body = await readJsonBody(req, {});
-      const result = await concept[method](body);
-      return json(result);
-    } catch (e) {
-      console.error(`Error in ${conceptName}.${method}:`, e);
-      return json({ error: "An internal server error occurred." }, 500);
-    }
-  }
-
-  /**
    * REQUESTING ROUTE
    *
-   * Handles all POST paths under the base URL that are not passthrough routes.
-   * The specific action path is extracted from the URL and combined with the
-   * JSON body to form the input to `Requesting.request`.
+   * Handles all POST paths under the base URL. The specific action path is
+   * extracted from the URL and combined with the JSON body to form the input to
+   * `Requesting.request`.
    */
   async function handleRequesting(
     req: Request,
@@ -358,7 +290,7 @@ export function startRequestingServer(
 
   const routePath = `${REQUESTING_BASE_URL}/*`;
   console.log(
-    `\n🚀 Requesting server listening for POST requests at base path of ${routePath}`,
+    `\nRequesting server listening for POST requests at base path of ${routePath}`,
   );
 
   return Bun.serve({
@@ -372,8 +304,6 @@ export function startRequestingServer(
       const { pathname } = new URL(req.url);
 
       if (req.method === "POST" && pathname.startsWith(REQUESTING_BASE_URL)) {
-        const route = passthrough.get(pathname);
-        if (route) return handlePassthrough(req, route);
         return handleRequesting(req, pathname);
       }
 

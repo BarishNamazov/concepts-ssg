@@ -54,7 +54,7 @@ The application is described under `design/`:
   - [docs/ENGINE.md](docs/ENGINE.md) — the concept + synchronization engine.
   - [docs/REQUESTING.md](docs/REQUESTING.md) — the Bun.serve Requesting server.
   - [docs/SDK_OVERVIEW.md](docs/SDK_OVERVIEW.md) — how the SDK ties to the engine, server, and example client.
-  - [docs/API_AND_SDK.md](docs/API_AND_SDK.md), [docs/CONCEPTS.md](docs/CONCEPTS.md), [docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md), [docs/SDK_AUTOGEN.md](docs/SDK_AUTOGEN.md).
+  - [docs/API_AND_SDK.md](docs/API_AND_SDK.md), [docs/CONCEPTS.md](docs/CONCEPTS.md), [docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md), [docs/SDK_CONTRACT.md](docs/SDK_CONTRACT.md).
 
 To add a feature:
 

@@ -32,9 +32,7 @@ src/
 
 The architecture will automatically spin up an HTTP server for your application. However, you might wonder how exactly an external HTTP request triggers your logic. This is handled by the provided concept called `Requesting`.
 
-When an HTTP request hits the server, the Concept Engine automatically translates it into a `Requesting.request` action. You don't implement this concept; you just use its actions as triggers in your synchronizations.
-
-> **Important:** by default, `Requesting` also includes *passthrough routes* that automatically generate routes for direct access to concept actions and queries. Please read the [Requesting README](../../src/concepts/Requesting/README.md) for more details.
+When an HTTP request hits the server, the Concept Engine automatically translates it into a `Requesting.request` action. You don't implement this concept; you just use its actions as triggers in your synchronizations. Public endpoints are explicit synchronizations; concept methods are not exposed directly as HTTP routes.
 
 For example, an incoming request like `POST /api/posts/create` with a JSON body `{ "title": "My First Post", "content": "Hello world!", "session": "s123" }` is automatically converted into an action that looks like this:
 

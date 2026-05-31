@@ -52,6 +52,6 @@ normal backend or transport failures. Callers check `"error" in result`.
 
 ## See Also
 
-- [`docs/SDK_AUTOGEN.md`](SDK_AUTOGEN.md) — typed Requesting contract details.
+- [`docs/SDK_CONTRACT.md`](SDK_CONTRACT.md) — typed Requesting contract details.
 - [`docs/REQUESTING.md`](REQUESTING.md) — HTTP bridge and Requesting lifecycle.
 - [`src/sdk/README.md`](../src/sdk/README.md) — SDK usage.
