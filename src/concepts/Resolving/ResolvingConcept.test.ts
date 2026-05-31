@@ -42,7 +42,9 @@ describe("Resolving", () => {
     expect(await Resolving._isResolved({ question: q })).toEqual([
       { resolved: true },
     ]);
-    expect(await Resolving._getAnswer({ question: q })).toEqual([{ answer: a }]);
+    expect(await Resolving._getAnswer({ question: q })).toEqual([
+      { answer: a },
+    ]);
   });
 
   test("accepting again with a different answer moves the mark", async () => {
