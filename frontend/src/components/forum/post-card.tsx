@@ -24,9 +24,12 @@ import { UserName } from "@/components/forum/user-name";
 import { RenderedMarkdown } from "@/components/forum/rendered-markdown";
 import { ReactionBar } from "@/components/forum/reaction-bar";
 import { BookmarkButton } from "@/components/forum/bookmark-button";
+import { PinControl } from "@/components/forum/pin-control";
+import { PostLinks } from "@/components/forum/post-links";
 import { RevisionsDialog } from "@/components/forum/revisions-dialog";
 import { FlagDialog } from "@/components/forum/flag-dialog";
 import { Composer } from "@/components/forum/composer";
+import { useQuery } from "@/hooks/use-query";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import type { ThreadNode } from "@/lib/models";
@@ -42,6 +45,8 @@ interface PostCardProps {
   rootAuthorId: string;
   acceptedAnswer: string | null;
   locked: boolean;
+  /** Pin scope — the conversation id. */
+  scope: string;
   onChanged: () => void;
 }
 
@@ -52,9 +57,10 @@ export function PostCard({
   rootAuthorId,
   acceptedAnswer,
   locked,
+  scope,
   onChanged,
 }: PostCardProps) {
-  const { session, me } = useAuth();
+  const { session, me, can } = useAuth();
   const [editing, setEditing] = useState(false);
   const [replying, setReplying] = useState(false);
   const [flagOpen, setFlagOpen] = useState(false);
@@ -67,6 +73,12 @@ export function PostCard({
   const canAcceptAnswers = !!myId && myId === rootAuthorId && !isRoot;
   const isAccepted = acceptedAnswer === postId;
   const edited = !!node.post.editedAt;
+
+  const trashed = useQuery<{ trashed: boolean }>(
+    () => api.trash.isTrashed({ item: postId }),
+    [postId],
+  );
+  const isTrashed = trashed.data?.trashed ?? false;
 
   async function saveEdit(content: string) {
     if (!session) return;
@@ -120,16 +132,37 @@ export function PostCard({
     }
   }
 
+  async function moderatorTrash() {
+    if (!session) return;
+    const result = isTrashed
+      ? await api.trash.restore({ session, item: postId })
+      : await api.trash.trash({ session, item: postId });
+    if ("error" in result) toast.error(result.error);
+    else {
+      toast.success(isTrashed ? "Post restored" : "Post moved to trash");
+      trashed.refetch();
+      onChanged();
+    }
+  }
+
   return (
     <article
       id={`post-${postId}`}
       className={cn(
         "scroll-mt-24 rounded-xl border bg-card p-4 shadow-sm transition-colors sm:p-5",
-        isAccepted
-          ? "border-emerald-500/50 ring-1 ring-emerald-500/20"
-          : "border-border",
+        isTrashed
+          ? "border-destructive/40 opacity-75"
+          : isAccepted
+            ? "border-emerald-500/50 ring-1 ring-emerald-500/20"
+            : "border-border",
       )}
     >
+      {isTrashed ? (
+        <p className="mb-3 inline-flex items-center gap-1.5 rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
+          <Trash2 className="size-3.5" />
+          Removed by a moderator
+        </p>
+      ) : null}
       <header className="mb-3 flex items-start gap-3">
         <UserAvatar user={author} />
         <div className="min-w-0 flex-1">
@@ -167,6 +200,8 @@ export function PostCard({
         <RenderedMarkdown html={node.rendered} />
       )}
 
+      {!editing ? <PostLinks post={postId} /> : null}
+
       {!editing ? (
         <footer className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <ReactionBar target={postId} />
@@ -192,6 +227,7 @@ export function PostCard({
               </Button>
             ) : null}
             <BookmarkButton item={postId} />
+            <PinControl item={postId} scope={scope} onChanged={onChanged} />
             {session && !locked ? (
               <Button
                 variant="ghost"
@@ -235,6 +271,15 @@ export function PostCard({
                     <FlagIcon className="size-4" />
                     Report
                   </DropdownMenuItem>
+                  {can.moderate ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={moderatorTrash}>
+                        <Trash2 className="size-4" />
+                        {isTrashed ? "Restore post" : "Trash (mod)"}
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}

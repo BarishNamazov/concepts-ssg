@@ -1,15 +1,18 @@
 "use client";
 
-import { Lock, LockOpen, MessageSquare } from "lucide-react";
+import { Lock, LockOpen, MessageSquare, Pin, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@/components/link";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/forum/badges";
+import { CategoryAssign } from "@/components/forum/category-assign";
 import { Composer } from "@/components/forum/composer";
 import { PageContainer } from "@/components/forum/page";
 import { PostCard } from "@/components/forum/post-card";
+import { PostPreview } from "@/components/forum/post-preview";
 import { SubscribeButton } from "@/components/forum/subscribe-button";
 import { TagEditor } from "@/components/forum/tag-editor";
+import { UnreadBanner } from "@/components/forum/unread-banner";
 import {
   ErrorState,
   LoadingState,
@@ -34,6 +37,14 @@ export function ThreadView({ conversation }: { conversation: string }) {
     () => loadThreadPage(conversation),
     [conversation],
   );
+  const subscribers = useQuery<{ subscribers: { user: string }[] }>(
+    () => api.subscriptions.subscribers({ target: conversation }),
+    [conversation],
+  );
+  const pinned = useQuery<{ pinned: { item: string; priority: number }[] }>(
+    () => api.pins.forScope({ scope: conversation }),
+    [conversation],
+  );
 
   if (loading && !data) return <LoadingState label="Loading discussion…" />;
   if (error) return <ErrorState message={error} onRetry={refetch} />;
@@ -44,6 +55,13 @@ export function ThreadView({ conversation }: { conversation: string }) {
   const rootAuthorId = String(root.post.author);
   const title = titleFromContent(root.post.content);
   const replyCount = Math.max(0, nodes.length - 1);
+  const subscriberCount = subscribers.data?.subscribers.length ?? 0;
+  const pinnedItems = pinned.data?.pinned ?? [];
+
+  function refetchAll() {
+    refetch();
+    pinned.refetch();
+  }
 
   async function toggleLock() {
     if (!session) return;
@@ -98,12 +116,30 @@ export function ThreadView({ conversation }: { conversation: string }) {
           {title}
         </h1>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-            <MessageSquare className="size-4" />
-            {count(replyCount, "reply", "replies")}
-          </span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <MessageSquare className="size-4" />
+              {count(replyCount, "reply", "replies")}
+            </span>
+            {subscriberCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="size-4" />
+                {count(subscriberCount, "follower")}
+              </span>
+            ) : null}
+            {acceptedAnswer ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-emerald-600 dark:text-emerald-400">
+                Solved
+              </span>
+            ) : null}
+          </div>
           <div className="flex items-center gap-2">
             <SubscribeButton conversation={conversation} />
+            <CategoryAssign
+              item={questionId}
+              current={category ? String(category.category) : null}
+              onChanged={refetch}
+            />
             {session && can.moderate ? (
               <Button
                 variant="outline"
@@ -126,6 +162,26 @@ export function ThreadView({ conversation }: { conversation: string }) {
         </div>
       </header>
 
+      <UnreadBanner conversation={conversation} rootItem={questionId} />
+
+      {pinnedItems.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="eyebrow mb-3 flex items-center gap-1.5">
+            <Pin className="size-3.5" />
+            Pinned
+          </h2>
+          <div className="space-y-3">
+            {pinnedItems.map((p) => (
+              <PostPreview
+                key={String(p.item)}
+                item={String(p.item)}
+                conversation={conversation}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="space-y-4">
         {nodes.map((node) => (
           <div key={String(node.node)} className={cn(indentFor(node.depth))}>
@@ -136,7 +192,8 @@ export function ThreadView({ conversation }: { conversation: string }) {
               rootAuthorId={rootAuthorId}
               acceptedAnswer={acceptedAnswer}
               locked={locked}
-              onChanged={refetch}
+              scope={conversation}
+              onChanged={refetchAll}
             />
           </div>
         ))}

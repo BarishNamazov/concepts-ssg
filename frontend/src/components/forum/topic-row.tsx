@@ -1,11 +1,12 @@
 "use client";
 
-import { Lock, MessageSquare } from "lucide-react";
+import { CheckCircle2, Lock, MessageSquare } from "lucide-react";
 import { Link } from "@/components/link";
 import { UserAvatar } from "@/components/forum/user-avatar";
 import { CategoryBadge } from "@/components/forum/badges";
 import { useProfile } from "@/lib/profiles";
 import { useQuery } from "@/hooks/use-query";
+import { api } from "@/lib/api";
 import { enrichTopic } from "@/lib/loaders";
 import type { ConversationSummary } from "@/lib/models";
 import {
@@ -45,6 +46,10 @@ export function TopicRow({
   const author = String(summary.post.author);
   const authorProfile = useProfile(author);
   const { data } = useQuery(() => enrichTopic(summary), [conversation]);
+  const resolved = useQuery<{ resolved: boolean }>(
+    () => api.resolutions.isResolved({ question: String(summary.item) }),
+    [conversation],
+  );
 
   const title = titleFromContent(summary.post.content);
   const preview = excerpt(summary.post.content);
@@ -75,6 +80,12 @@ export function TopicRow({
               <Lock
                 className="mt-1 size-4 shrink-0 text-muted-foreground"
                 aria-label="Locked"
+              />
+            ) : null}
+            {resolved.data?.resolved ? (
+              <CheckCircle2
+                className="mt-1 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                aria-label="Solved"
               />
             ) : null}
           </div>
