@@ -141,3 +141,18 @@ export async function loadThreadPage(conversation: string): Promise<ThreadPage> 
             : null),
   };
 }
+
+/**
+ * Map each conversation's *root post id* to its conversation id, derived from
+ * the feed. Many list endpoints (bookmarks, category items, tag targets, a
+ * user's posts) return bare post ids; this lets the UI link a root post back to
+ * its thread. Non-root posts simply won't resolve (and render without a link).
+ */
+export async function loadRootIndex(): Promise<Record<string, string>> {
+  const conversations = await loadFeed();
+  const index: Record<string, string> = {};
+  for (const summary of conversations) {
+    index[String(summary.item)] = String(summary.conversation);
+  }
+  return index;
+}
