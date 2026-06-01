@@ -70,9 +70,10 @@ describe("flagging synchronizations", () => {
   });
 
   test("a flagged target appears in the open queue until resolved", async () => {
+    const admin = await registerAndLogin("flag_admin");
     const reporter = await registerAndLogin("flag_reporter");
     const mod = await registerAndLogin("flag_mod");
-    await grantModerator(mod.session, mod.user);
+    await grantModerator(admin.session, mod.user);
 
     await app.send("/flags/raise", {
       session: reporter.session,
@@ -99,6 +100,7 @@ describe("flagging synchronizations", () => {
   });
 
   test("a user without the moderate capability cannot resolve flags", async () => {
+    await registerAndLogin("flag_r2_admin");
     const reporter = await registerAndLogin("flag_r2");
     await app.send("/flags/raise", {
       session: reporter.session,

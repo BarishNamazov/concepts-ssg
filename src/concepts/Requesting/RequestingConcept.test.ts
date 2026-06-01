@@ -97,12 +97,15 @@ describe("startRequestingServer (Bun.serve HTTP round-trip)", () => {
       return result;
     };
 
-    const server = startRequestingServer({
-      Requesting,
-      db: mongo.db,
-      client: mongo.client,
-      Engine: {},
-    });
+    const server = startRequestingServer(
+      {
+        Requesting,
+        db: mongo.db,
+        client: mongo.client,
+        Engine: {},
+      },
+      { port: 0 },
+    );
 
     const base = `http://localhost:${server.port}/api`;
 

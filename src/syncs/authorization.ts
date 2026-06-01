@@ -11,11 +11,11 @@
  * perform a privileged action when they hold the required capability there.
  *
  * **Bootstrap.** A brand-new forum has no administrators, so demanding the
- * capability up front would lock everyone out forever. Until someone holds the
- * {@link ADMIN_CAPABILITY} in the forum context the gate stays *open*, letting
- * the first operator grant themselves an administrator role (the
- * "first registered account becomes instructor" pattern). The moment an
- * administrator exists the forum is "claimed" and enforcement kicks in for good.
+ * capability up front would lock everyone out forever. Auth syncs automatically
+ * grant the sole registered user an administrator role; until someone holds the
+ * {@link ADMIN_CAPABILITY} in the forum context the gate also stays *open* for
+ * manual recovery. The moment an administrator exists the forum is "claimed"
+ * and enforcement kicks in for good.
  */
 import { Roling, Sessioning } from "@concepts";
 import type { Frame, Frames } from "@engine";

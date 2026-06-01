@@ -8,13 +8,19 @@
  *   POST /auth/me        { session }                         -> { user, username, profile }
  *   POST /auth/changePassword { session, oldPassword, newPassword } -> { user }
  */
-import { Authenticating, Profiling, Sessioning } from "@concepts";
+import { Authenticating, Profiling, Roling, Sessioning } from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
   type Prettify,
   type QueryRow,
 } from "@concepts/Requesting/api.ts";
+import type { Frames } from "@engine";
+import {
+  ADMIN_CAPABILITY,
+  FORUM_CONTEXT,
+  MODERATE_CAPABILITY,
+} from "./authorization.ts";
 
 type RegisterOutput = ActionOk<typeof Authenticating, "register">;
 type LoginOutput = Prettify<
@@ -29,7 +35,56 @@ type MeOutput = Prettify<
 >;
 type ChangePasswordOutput = ActionOk<typeof Authenticating, "changePassword">;
 
-// --- register: create credentials, then a profile, then respond ---
+const ADMIN_ROLE_NAME = "administrator";
+const PIN_CAPABILITY = "pin";
+const INITIAL_ADMIN_CAPABILITIES = [
+  ADMIN_CAPABILITY,
+  MODERATE_CAPABILITY,
+  PIN_CAPABILITY,
+];
+
+/** Keep only bootstrap frames: exactly one user exists and no admin has claimed the forum. */
+async function onlySoleUserInUnclaimedForum(
+  frames: Frames,
+  {
+    count,
+    present,
+  }: {
+    count: symbol;
+    present: symbol;
+  },
+): Promise<Frames> {
+  frames = await frames.query(Authenticating._getUserCount, {}, { count });
+  frames = await frames.query(
+    Roling._hasCapabilityHolder,
+    { context: FORUM_CONTEXT, capability: ADMIN_CAPABILITY },
+    { present },
+  );
+  return frames.filter(($) => $[count] === 1 && $[present] === false);
+}
+
+/** Find the bootstrap admin role when it was already defined but not yet granted. */
+async function existingInitialAdminRole(
+  frames: Frames,
+  {
+    count,
+    present,
+    role,
+  }: {
+    count: symbol;
+    present: symbol;
+    role: symbol;
+  },
+): Promise<Frames> {
+  frames = await onlySoleUserInUnclaimedForum(frames, { count, present });
+  return await frames.query(
+    Roling._getRoleByName,
+    { name: ADMIN_ROLE_NAME },
+    { role },
+  );
+}
+
+// --- register: create credentials, profile, bootstrap first admin, then respond ---
 
 const register = defineEndpoint(
   "/auth/register",
@@ -47,6 +102,36 @@ const register = defineEndpoint(
       ]),
       then: Actions([Profiling.createProfile, { user, displayName }]),
     })),
+
+    // First registration defines the forum administrator role.
+    RegisterDefinesInitialAdminRole: Sync(({ user, count, present }) => ({
+      when: Actions([Authenticating.register, {}, { user }]),
+      where: (frames) =>
+        onlySoleUserInUnclaimedForum(frames, { count, present }),
+      then: Actions([
+        Roling.defineRole,
+        { name: ADMIN_ROLE_NAME, capabilities: INITIAL_ADMIN_CAPABILITIES },
+      ]),
+    })),
+
+    // If registration just created the role, grant it to that first user.
+    RegisterGrantsNewInitialAdminRole: Sync(({ user, role }) => ({
+      when: Actions(
+        [Authenticating.register, {}, { user }],
+        [Roling.defineRole, { name: ADMIN_ROLE_NAME }, { role }],
+      ),
+      then: Actions([Roling.grant, { user, context: FORUM_CONTEXT, role }]),
+    })),
+
+    // If the role already exists without a holder, grant it to that first user.
+    RegisterGrantsExistingInitialAdminRole: Sync(
+      ({ user, count, present, role }) => ({
+        when: Actions([Authenticating.register, {}, { user }]),
+        where: (frames) =>
+          existingInitialAdminRole(frames, { count, present, role }),
+        then: Actions([Roling.grant, { user, context: FORUM_CONTEXT, role }]),
+      }),
+    ),
 
     RegisterResponse: Sync(({ user }) => ({
       when: Actions([Authenticating.register, {}, { user }]),
@@ -69,6 +154,36 @@ const login = defineEndpoint(
       when: Actions(Request({ username, password })),
       then: Actions([Authenticating.authenticate, { username, password }]),
     })),
+
+    // First login backfills the administrator role for a sole pre-existing user.
+    LoginDefinesInitialAdminRole: Sync(({ user, count, present }) => ({
+      when: Actions([Authenticating.authenticate, {}, { user }]),
+      where: (frames) =>
+        onlySoleUserInUnclaimedForum(frames, { count, present }),
+      then: Actions([
+        Roling.defineRole,
+        { name: ADMIN_ROLE_NAME, capabilities: INITIAL_ADMIN_CAPABILITIES },
+      ]),
+    })),
+
+    // If login just created the role, grant it to the sole user.
+    LoginGrantsNewInitialAdminRole: Sync(({ user, role }) => ({
+      when: Actions(
+        [Authenticating.authenticate, {}, { user }],
+        [Roling.defineRole, { name: ADMIN_ROLE_NAME }, { role }],
+      ),
+      then: Actions([Roling.grant, { user, context: FORUM_CONTEXT, role }]),
+    })),
+
+    // If the role already exists without a holder, login grants it to the sole user.
+    LoginGrantsExistingInitialAdminRole: Sync(
+      ({ user, count, present, role }) => ({
+        when: Actions([Authenticating.authenticate, {}, { user }]),
+        where: (frames) =>
+          existingInitialAdminRole(frames, { count, present, role }),
+        then: Actions([Roling.grant, { user, context: FORUM_CONTEXT, role }]),
+      }),
+    ),
 
     // This could be an independent app sync if "authenticate success starts a
     // session" becomes a global invariant instead of /auth/login behavior:

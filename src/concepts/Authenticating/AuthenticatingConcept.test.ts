@@ -112,4 +112,13 @@ describe("Authenticating", () => {
       await Authenticating._existsByUsername({ username: "ghost" }),
     ).toEqual([{ exists: false }]);
   });
+
+  test("_getUserCount returns the number of registered users", async () => {
+    expect(await Authenticating._getUserCount()).toEqual([{ count: 0 }]);
+
+    ok(await Authenticating.register({ username: "heidi", password: "pw" }));
+    ok(await Authenticating.register({ username: "ivan", password: "pw" }));
+
+    expect(await Authenticating._getUserCount()).toEqual([{ count: 2 }]);
+  });
 });

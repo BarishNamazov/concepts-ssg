@@ -200,4 +200,16 @@ export default class AuthenticatingConcept {
     const doc = await this.users.findOne({ username });
     return [{ exists: doc !== null }];
   }
+
+  /**
+   * _getUserCount (): (count: Number)
+   *
+   * **requires** true
+   *
+   * **effects** returns a single result with the number of registered Users
+   */
+  async _getUserCount(): Promise<{ count: number }[]> {
+    const count = await this.users.countDocuments();
+    return [{ count }];
+  }
 }

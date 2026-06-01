@@ -198,6 +198,63 @@ async function establishAdmin(
 }
 
 describe("role administration authorization", () => {
+  test("the first registered account automatically receives administrator powers", async () => {
+    const first = await app.send("/auth/register", {
+      username: "role_auto_admin",
+      password: "pw",
+      displayName: "role_auto_admin",
+    });
+
+    for (const capability of ["administer", "moderate", "pin"]) {
+      const can = await app.send("/roles/can", {
+        user: first.user,
+        context: "forum",
+        capability,
+      });
+      expect(can.allowed).toBe(true);
+    }
+
+    const second = await app.send("/auth/register", {
+      username: "role_auto_member",
+      password: "pw",
+      displayName: "role_auto_member",
+    });
+    const canAdmin = await app.send("/roles/can", {
+      user: second.user,
+      context: "forum",
+      capability: "administer",
+    });
+    expect(canAdmin.allowed).toBe(false);
+  });
+
+  test("logging in an existing sole account backfills administrator powers", async () => {
+    const created = await app.concepts.Authenticating.register({
+      username: "role_legacy_admin",
+      password: "pw",
+    });
+    if ("error" in created) throw new Error(created.error);
+
+    const before = await app.send("/roles/can", {
+      user: created.user,
+      context: "forum",
+      capability: "administer",
+    });
+    expect(before.allowed).toBe(false);
+
+    const login = await app.send("/auth/login", {
+      username: "role_legacy_admin",
+      password: "pw",
+    });
+    expect(login.session).toBeDefined();
+
+    const after = await app.send("/roles/can", {
+      user: created.user,
+      context: "forum",
+      capability: "administer",
+    });
+    expect(after.allowed).toBe(true);
+  });
+
   test("the first operator can bootstrap themselves as administrator", async () => {
     const admin = await establishAdmin("role_boot_admin");
 

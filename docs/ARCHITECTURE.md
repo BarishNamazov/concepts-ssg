@@ -347,7 +347,7 @@ only through opaque branded `ID` strings.
 
 | Concept | Type Params | Purpose | Actions | Queries | Collections |
 | --- | --- | --- | --- | --- | --- |
-| `Authenticating` | owns `User` | Establish and prove persistent identity. | `register`, `authenticate`, `changePassword`, `changeUsername`, `unregister` | `_getById`, `_getByUsername`, `_existsByUsername` | `Authenticating.users` |
+| `Authenticating` | owns `User` | Establish and prove persistent identity. | `register`, `authenticate`, `changePassword`, `changeUsername`, `unregister` | `_getById`, `_getByUsername`, `_existsByUsername`, `_getUserCount` | `Authenticating.users` |
 | `Sessioning` | `[User]` | Keep a user signed in across requests. | `start`, `startWithExpiry`, `end`, `endAllForUser`, `expire` | `_getUser`, `_getSessionsForUser`, `_isActive` | `Sessioning.sessions` |
 | `Profiling` | `[User]` | Store a public display name, bio, and avatar. | `createProfile`, `setDisplayName`, `setBio`, `setAvatar`, `deleteProfile` | `_getProfile`, `_getDisplayName`, `_getByDisplayName` | `Profiling.profiles` |
 | `Posting` | `[Author]` | Store authored textual content. | `create`, `edit`, `delete` | `_getPost`, `_getContent`, `_getByAuthor`, `_getAuthor`, `_exists` | `Posting.posts` |
@@ -721,6 +721,9 @@ unprefixed `path` value.
 
 - **Authorization:** protected endpoints resolve `session` through
   `Sessioning._getUser`; invalid sessions respond with `{ error }`.
+- **First administrator:** when the sole registered user registers or logs in,
+  auth syncs define/grant an `administrator` role with `administer`, `moderate`,
+  and `pin` in the global `forum` context.
 - **Thread creation:** `Posting.create` is followed by `Conversing.start`,
   `Formatting.setSource`, and `Tracking.register`.
 - **Replies:** `Posting.create` is followed by `Conversing.reply`,
