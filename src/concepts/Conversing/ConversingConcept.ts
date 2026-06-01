@@ -185,7 +185,7 @@ export default class ConversingConcept {
   > {
     const convos = await this.conversations
       .find({})
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray();
     const roots = await this.nodes
       .find({
@@ -274,7 +274,7 @@ export default class ConversingConcept {
   > {
     const docs = await this.nodes
       .find({ conversation })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: 1, _id: 1 })
       .toArray();
     return docs.map((d) => ({
       node: d._id,
@@ -295,7 +295,7 @@ export default class ConversingConcept {
   async _getReplies({ node }: { node: Node }): Promise<{ reply: Node }[]> {
     const docs = await this.nodes
       .find({ parent: node })
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: 1, _id: 1 })
       .toArray();
     return docs.map((d) => ({ reply: d._id }));
   }

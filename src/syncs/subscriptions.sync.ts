@@ -108,12 +108,13 @@ const mine = defineEndpoint(
       ({ session, user, target, createdAt, subscriptions }) => ({
         when: Actions(Request({ session })),
         where: async (frames) => {
-          const [base] = frames;
           frames = await frames.query(
             Sessioning._getUser,
             { session },
             { user },
           );
+          const [base] = frames;
+          if (base === undefined) return frames;
           frames = await frames.query(
             Subscribing._getSubscriptions,
             { user },

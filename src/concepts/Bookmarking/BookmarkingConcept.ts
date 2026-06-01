@@ -101,7 +101,7 @@ export default class BookmarkingConcept {
   }): Promise<{ item: Item; savedAt: Date }[]> {
     const docs = await this.bookmarks
       .find({ user })
-      .sort({ savedAt: -1 })
+      .sort({ savedAt: -1, _id: -1 })
       .toArray();
     return docs.map((d) => ({ item: d.item, savedAt: d.savedAt }));
   }

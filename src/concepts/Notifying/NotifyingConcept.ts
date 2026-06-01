@@ -162,7 +162,7 @@ export default class NotifyingConcept {
   > {
     const docs = await this.notifications
       .find({ recipient })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray();
     return docs.map((d) => ({
       notification: d._id,
@@ -214,7 +214,7 @@ export default class NotifyingConcept {
   > {
     const docs = await this.notifications
       .find({ recipient, read: false })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray();
     return docs.map((d) => ({
       notification: d._id,

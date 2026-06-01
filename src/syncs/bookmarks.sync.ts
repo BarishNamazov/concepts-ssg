@@ -104,12 +104,13 @@ const list = defineEndpoint(
       ({ session, user, item, savedAt, bookmarks }) => ({
         when: Actions(Request({ session })),
         where: async (frames) => {
-          const [base] = frames;
           frames = await frames.query(
             Sessioning._getUser,
             { session },
             { user },
           );
+          const [base] = frames;
+          if (base === undefined) return frames;
           frames = await frames.query(
             Bookmarking._getSaved,
             { user },

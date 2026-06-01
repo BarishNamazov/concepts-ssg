@@ -136,7 +136,7 @@ export default class PinningConcept {
   }): Promise<{ item: Item; priority: number }[]> {
     const docs = await this.pins
       .find({ scope })
-      .sort({ priority: -1 })
+      .sort({ priority: -1, _id: -1 })
       .toArray();
     return docs.map((d) => ({ item: d.item, priority: d.priority }));
   }

@@ -124,7 +124,7 @@ export default class SubscribingConcept {
   }): Promise<{ target: Target; createdAt: Date }[]> {
     const docs = await this.subscriptions
       .find({ user })
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: -1, _id: -1 })
       .toArray();
     return docs.map((d) => ({ target: d.target, createdAt: d.createdAt }));
   }

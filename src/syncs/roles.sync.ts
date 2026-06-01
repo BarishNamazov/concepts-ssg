@@ -65,8 +65,25 @@ const grant = defineEndpoint(
   ({ Sync, Actions, Request, Respond, Fail }) => ({
     RoleGrantRequest: Sync(({ session, user, context, role, actor }) => ({
       when: Actions(Request({ session, user, context, role })),
-      where: async (frames) =>
-        await frames.query(Sessioning._getUser, { session }, { user: actor }),
+      where: async (frames) => {
+        frames = await frames.query(
+          Sessioning._getUser,
+          { session },
+          { user: actor },
+        );
+        // Allow grants to reference a role by its human-readable name as well
+        // as by its id; resolve names to ids, leaving ids (and unknown values)
+        // untouched so the grant action can validate existence.
+        const resolved = await Promise.all(
+          frames.map(async ($) => {
+            const rows = await Roling._getRoleByName({
+              name: $[role] as string,
+            });
+            return rows.length > 0 ? rows[0].role : ($[role] as string);
+          }),
+        );
+        return frames.map(($, i) => ({ ...$, [role]: resolved[i] }));
+      },
       then: Actions([Roling.grant, { user, context, role }]),
     })),
 

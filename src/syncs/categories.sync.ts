@@ -234,21 +234,19 @@ const items = defineEndpoint(
 const forItem = defineEndpoint(
   "/categories/forItem",
   ({ Sync, Actions, Request, Respond }) => ({
-    CategoryForItemResponse: Sync(
-      ({ item, cat, name, description, category }) => ({
-        when: Actions(Request({ item })),
-        where: async (frames) => {
-          const [base] = frames;
-          frames = await frames.query(
-            Categorizing._getCategory,
-            { item },
-            { category: cat, name, description },
-          );
-          return frames.aggregate(base, [cat, name, description], category);
-        },
-        then: Actions(Respond<CategoryForItemOutput>({ category })),
-      }),
-    ),
+    CategoryForItemResponse: Sync(({ item, name, description, category }) => ({
+      when: Actions(Request({ item })),
+      where: async (frames) => {
+        const [base] = frames;
+        frames = await frames.query(
+          Categorizing._getCategory,
+          { item },
+          { category, name, description },
+        );
+        return frames.aggregate(base, [category, name, description], category);
+      },
+      then: Actions(Respond<CategoryForItemOutput>({ category })),
+    })),
   }),
 );
 

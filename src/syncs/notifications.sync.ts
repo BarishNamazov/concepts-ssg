@@ -32,21 +32,36 @@ const list = defineEndpoint(
   "/notifications/list",
   ({ Sync, Actions, Request, Respond, Fail }) => ({
     NotificationsListResponse: Sync(
-      ({ session, user, notification, notifications }) => ({
+      ({
+        session,
+        user,
+        notification,
+        kind,
+        subject,
+        link,
+        createdAt,
+        read,
+        notifications,
+      }) => ({
         when: Actions(Request({ session })),
         where: async (frames) => {
-          const [base] = frames;
           frames = await frames.query(
             Sessioning._getUser,
             { session },
             { user },
           );
+          const [base] = frames;
+          if (base === undefined) return frames;
           frames = await frames.query(
             Notifying._getInbox,
             { recipient: user },
-            { notification },
+            { notification, kind, subject, link, createdAt, read },
           );
-          return frames.aggregate(base, [notification], notifications);
+          return frames.aggregate(
+            base,
+            [notification, kind, subject, link, createdAt, read],
+            notifications,
+          );
         },
         then: Actions(Respond<NotificationsListOutput>({ notifications })),
       }),
