@@ -1,65 +1,136 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { MessagesSquare, PenLine } from "lucide-react";
+import { Link } from "@/components/link";
+import { Button } from "@/components/ui/button";
+import { CategoryDot } from "@/components/forum/badges";
+import { TopicRow } from "@/components/forum/topic-row";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/forum/states";
+import { useQuery } from "@/hooks/use-query";
+import { loadFeed } from "@/lib/loaders";
+import { api } from "@/lib/api";
+import type { Category } from "@/lib/models";
+import { useAuth } from "@/lib/auth";
+
+function CategoriesCard() {
+  const { data } = useQuery<{ categories: Category[] }>(
+    () => api.categories.list({}),
+    [],
+  );
+  const categories = data?.categories ?? [];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="eyebrow">Categories</p>
+        <Link
+          href="/categories"
+          className="text-xs font-medium text-primary hover:underline"
+        >
+          All
+        </Link>
+      </div>
+      {categories.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No categories yet.</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {categories.slice(0, 8).map((c) => (
+            <li key={String(c.category)}>
+              <Link
+                href={`/c/${c.category}`}
+                className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <CategoryDot id={String(c.category)} />
+                <span className="truncate font-medium">{c.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function WelcomeCard() {
+  const { me } = useAuth();
+  if (me) return null;
+  return (
+    <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
+      <h3 className="font-display text-lg font-semibold tracking-tight">
+        Welcome to the Commons
+      </h3>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        A quiet reading room for long-form discussion. Sign in to post, reply,
+        react, and follow conversations.
+      </p>
+      <div className="mt-4 flex gap-2">
+        <Button asChild size="sm">
+          <Link href="/register">Create account</Link>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/login">Sign in</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  const { data, loading, error, refetch } = useQuery(() => loadFeed(), []);
+
+  return (
+    <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_18rem] lg:py-10">
+      <section className="min-w-0">
+        <div className="mb-5 flex items-end justify-between border-b border-border pb-4">
+          <div>
+            <p className="eyebrow">The latest</p>
+            <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+              Conversations
+            </h1>
+          </div>
+          <Button asChild size="sm" className="gap-1.5">
+            <Link href="/new">
+              <PenLine className="size-4" /> New topic
+            </Link>
+          </Button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {loading && !data ? (
+          <LoadingState label="Gathering the latest…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={refetch} />
+        ) : data && data.length > 0 ? (
+          <div className="-mx-3">
+            {data.map((summary, i) => (
+              <TopicRow
+                key={String(summary.conversation)}
+                summary={summary}
+                index={i}
+              />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            icon={MessagesSquare}
+            title="No conversations yet"
+            description="Be the first to start a topic and get the room talking."
+            action={
+              <Button asChild size="sm">
+                <Link href="/new">Start a topic</Link>
+              </Button>
+            }
+          />
+        )}
+      </section>
+
+      <aside className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+        <WelcomeCard />
+        <CategoriesCard />
+      </aside>
     </div>
   );
 }
