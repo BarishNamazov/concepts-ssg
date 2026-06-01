@@ -42,19 +42,6 @@ const save = defineEndpoint(
       when: Actions([Bookmarking.save, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    BookmarkSaveInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -79,19 +66,6 @@ const unsave = defineEndpoint(
       when: Actions([Bookmarking.unsave, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    BookmarkUnsaveInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -99,7 +73,7 @@ const unsave = defineEndpoint(
 
 const list = defineEndpoint(
   "/bookmarks/list",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     BookmarkListResponse: Sync(
       ({ session, user, item, savedAt, bookmarks }) => ({
         when: Actions(Request({ session })),
@@ -121,19 +95,6 @@ const list = defineEndpoint(
         then: Actions(Respond<BookmarkListOutput>({ bookmarks })),
       }),
     ),
-
-    BookmarkListInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -141,7 +102,7 @@ const list = defineEndpoint(
 
 const isSaved = defineEndpoint(
   "/bookmarks/isSaved",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     BookmarkIsSavedResponse: Sync(({ session, item, user, saved }) => ({
       when: Actions(Request({ session, item })),
       where: async (frames) => {
@@ -153,19 +114,6 @@ const isSaved = defineEndpoint(
         );
       },
       then: Actions(Respond<BookmarkIsSavedOutput>({ saved })),
-    })),
-
-    BookmarkIsSavedInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

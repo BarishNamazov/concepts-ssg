@@ -52,19 +52,6 @@ const raise = defineEndpoint(
       when: Actions([Flagging.flag, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    FlagRaiseInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -118,19 +105,6 @@ const resolve = defineEndpoint(
       },
       then: Actions(Fail("Not authorized to resolve flags.")),
     })),
-
-    FlagResolveInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -138,7 +112,7 @@ const resolve = defineEndpoint(
 
 const open = defineEndpoint(
   "/flags/open",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     FlagsOpenResponse: Sync(({ session, user, target, count, targets }) => ({
       when: Actions(Request({ session })),
       where: async (frames) => {
@@ -153,19 +127,6 @@ const open = defineEndpoint(
         return frames.aggregate(base, [target, count], targets);
       },
       then: Actions(Respond<FlagsOpenOutput>({ targets })),
-    })),
-
-    FlagsOpenInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

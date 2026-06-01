@@ -70,19 +70,6 @@ const accept = defineEndpoint(
         Fail("Not authorized to accept an answer for this question."),
       ),
     })),
-
-    ResolutionAcceptInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -129,19 +116,6 @@ const clear = defineEndpoint(
       then: Actions(
         Fail("Not authorized to clear an answer for this question."),
       ),
-    })),
-
-    ResolutionClearInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

@@ -23,7 +23,7 @@ type MarkAllSeenOutput = ActionOk<typeof Tracking, "markAllSeen">;
 
 const list = defineEndpoint(
   "/unread/list",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     UnreadListResponse: Sync(({ session, scope, user, item, items }) => ({
       when: Actions(Request({ session, scope })),
       where: async (frames) => {
@@ -38,19 +38,6 @@ const list = defineEndpoint(
       },
       then: Actions(Respond<UnreadListOutput>({ items })),
     })),
-
-    UnreadListInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -58,7 +45,7 @@ const list = defineEndpoint(
 
 const unreadCount = defineEndpoint(
   "/unread/count",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     UnreadCountResponse: Sync(({ session, scope, user, count }) => ({
       when: Actions(Request({ session, scope })),
       where: async (frames) => {
@@ -70,19 +57,6 @@ const unreadCount = defineEndpoint(
         );
       },
       then: Actions(Respond<UnreadCountOutput>({ count })),
-    })),
-
-    UnreadCountInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
@@ -108,19 +82,6 @@ const markSeen = defineEndpoint(
       when: Actions([Tracking.markSeen, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    UnreadMarkSeenInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -128,7 +89,7 @@ const markSeen = defineEndpoint(
 
 const markAllSeen = defineEndpoint(
   "/unread/markAllSeen",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     UnreadMarkAllSeenRequest: Sync(({ session, scope, user }) => ({
       when: Actions(Request({ session, scope })),
       where: async (frames) =>
@@ -139,19 +100,6 @@ const markAllSeen = defineEndpoint(
     UnreadMarkAllSeenResponse: Sync(({ user }) => ({
       when: Actions([Tracking.markAllSeen, {}, { user }]),
       then: Actions(Respond<MarkAllSeenOutput>({ user })),
-    })),
-
-    UnreadMarkAllSeenInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

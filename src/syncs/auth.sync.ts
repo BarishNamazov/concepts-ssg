@@ -8,14 +8,20 @@
  *   POST /auth/me        { session }                         -> { user, username, profile }
  *   POST /auth/changePassword { session, oldPassword, newPassword } -> { user }
  */
-import { Authenticating, Profiling, Roling, Sessioning } from "@concepts";
+import {
+  Authenticating,
+  Profiling,
+  Requesting,
+  Roling,
+  Sessioning,
+} from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
   type Prettify,
   type QueryRow,
 } from "@concepts/Requesting/api.ts";
-import type { Frames } from "@engine";
+import { actions, type Frames, type Sync } from "@engine";
 import {
   ADMIN_CAPABILITY,
   FORUM_CONTEXT,
@@ -241,7 +247,7 @@ const logout = defineEndpoint(
 
 const me = defineEndpoint(
   "/auth/me",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     MeResponse: Sync(({ session, user, username, profile }) => ({
       when: Actions(Request({ session })),
       where: async (frames) => {
@@ -254,19 +260,6 @@ const me = defineEndpoint(
         return await frames.query(Profiling._getProfile, { user }, { profile });
       },
       then: Actions(Respond<MeOutput>({ user, username, profile })),
-    })),
-
-    MeInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
@@ -297,19 +290,6 @@ const changePassword = defineEndpoint(
       when: Actions([Authenticating.changePassword, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    ChangePasswordInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -320,3 +300,23 @@ export const authApi = {
   me,
   changePassword,
 };
+
+// --- global session guard ---
+
+// "A request bearing an inactive session is rejected" is a forum-wide invariant,
+// not per-endpoint behavior, so it lives here as a single app sync rather than a
+// copy of `*InvalidSession` inside every endpoint. Like the LoginStartsSession
+// note above, it is registered beside syncMap(api) (see syncs/app.ts) instead of
+// inside an endpoint. It anchors on the raw `Requesting.request` action and so
+// matches any request that carries a `session`, regardless of path.
+export const InvalidSession: Sync = ({ request, session, active }) => ({
+  when: actions([Requesting.request, { session }, { request }]),
+  where: async (frames) => {
+    frames = await frames.query(Sessioning._isActive, { session }, { active });
+    return frames.filter(($) => $[active] === false);
+  },
+  then: actions([
+    Requesting.respond,
+    { request, error: "Invalid or expired session." },
+  ]),
+});

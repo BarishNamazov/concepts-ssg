@@ -10,7 +10,7 @@
  *   POST /categories/items    { category }                   -> { items }
  *   POST /categories/forItem  { item }                       -> { category }
  */
-import { Categorizing, Sessioning } from "@concepts";
+import { Categorizing } from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
@@ -81,19 +81,6 @@ const create = defineEndpoint(
         then: Actions(Fail("Not authorized to manage categories.")),
       }),
     ),
-
-    CategoryCreateInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -141,19 +128,6 @@ const remove = defineEndpoint(
         then: Actions(Fail("Not authorized to manage categories.")),
       }),
     ),
-
-    CategoryDeleteInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -201,19 +175,6 @@ const assign = defineEndpoint(
         then: Actions(Fail("Not authorized to assign categories.")),
       }),
     ),
-
-    CategoryAssignInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -261,19 +222,6 @@ const unassign = defineEndpoint(
         then: Actions(Fail("Not authorized to assign categories.")),
       }),
     ),
-
-    CategoryUnassignInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 

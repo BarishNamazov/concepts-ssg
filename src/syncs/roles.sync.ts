@@ -8,7 +8,7 @@
  *   POST /roles/forUser { user, context }                -> { roles }
  *   POST /roles/can     { user, context, capability }    -> { allowed }
  */
-import { Roling, Sessioning } from "@concepts";
+import { Roling } from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
@@ -68,19 +68,6 @@ const define = defineEndpoint(
         }),
       then: Actions(Fail("Not authorized to manage roles.")),
     })),
-
-    RoleDefineInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -139,19 +126,6 @@ const grant = defineEndpoint(
         }),
       then: Actions(Fail("Not authorized to manage roles.")),
     })),
-
-    RoleGrantInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -196,19 +170,6 @@ const revoke = defineEndpoint(
           capability: ADMIN_CAPABILITY,
         }),
       then: Actions(Fail("Not authorized to manage roles.")),
-    })),
-
-    RoleRevokeInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

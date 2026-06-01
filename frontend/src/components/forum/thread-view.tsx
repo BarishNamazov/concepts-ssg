@@ -16,6 +16,7 @@ import { UnreadBanner } from "@/components/forum/unread-banner";
 import { ErrorState, LoadingState } from "@/components/forum/states";
 import { useHashTargetHighlight } from "@/hooks/use-hash-target-highlight";
 import { useQuery } from "@/hooks/use-query";
+import { useUnread } from "@/hooks/use-unread";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { loadThreadPage, type ThreadPage } from "@/lib/loaders";
@@ -73,6 +74,8 @@ export function ThreadView({ conversation }: { conversation: string }) {
   );
   const hashTargetVersion =
     data?.nodes.map((node) => String(node.item)).join("\u0000") ?? "";
+
+  const unread = useUnread(conversation, data ? data.questionId : "");
 
   useHashTargetHighlight({
     enabled: !!data,
@@ -199,7 +202,7 @@ export function ThreadView({ conversation }: { conversation: string }) {
         </div>
       </header>
 
-      <UnreadBanner conversation={conversation} rootItem={questionId} />
+      <UnreadBanner newCount={unread.newCount} onMarkAll={unread.markAll} />
 
       {pinnedItems.length > 0 ? (
         <section className="mb-6">
@@ -231,6 +234,7 @@ export function ThreadView({ conversation }: { conversation: string }) {
             acceptedAnswer={acceptedAnswer}
             locked={locked}
             scope={conversation}
+            unreadItems={unread.unreadItems}
             onChanged={refetchAll}
           />
         ))}
@@ -275,6 +279,7 @@ function ThreadBranchView({
   acceptedAnswer,
   locked,
   scope,
+  unreadItems,
   onChanged,
 }: {
   branch: ThreadBranch;
@@ -285,6 +290,7 @@ function ThreadBranchView({
   acceptedAnswer: string | null;
   locked: boolean;
   scope: string;
+  unreadItems: Set<string>;
   onChanged: () => void;
 }) {
   const isRoot = nodeKey(branch.node) === rootNodeId;
@@ -301,6 +307,7 @@ function ThreadBranchView({
           acceptedAnswer={acceptedAnswer}
           locked={locked}
           scope={scope}
+          isUnread={unreadItems.has(String(branch.node.item))}
           onChanged={onChanged}
         />
       </div>
@@ -323,6 +330,7 @@ function ThreadBranchView({
               acceptedAnswer={acceptedAnswer}
               locked={locked}
               scope={scope}
+              unreadItems={unreadItems}
               onChanged={onChanged}
             />
           ))}

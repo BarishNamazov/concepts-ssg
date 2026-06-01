@@ -134,19 +134,6 @@ const pin = defineEndpoint(
         then: Actions(Fail("Not authorized to pin in this scope.")),
       }),
     ),
-
-    PinInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -194,19 +181,6 @@ const unpin = defineEndpoint(
         then: Actions(Fail("Not authorized to pin in this scope.")),
       }),
     ),
-
-    UnpinInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -262,19 +236,6 @@ const setPriority = defineEndpoint(
         then: Actions(Fail("Not authorized to pin in this scope.")),
       }),
     ),
-
-    SetPriorityInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 

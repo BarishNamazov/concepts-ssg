@@ -7,7 +7,7 @@
  *   POST /locks/isLocked { target }          -> { locked }
  *   POST /locks/list     {}                  -> { locked }
  */
-import { Locking, Sessioning } from "@concepts";
+import { Locking } from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
@@ -64,19 +64,6 @@ const lock = defineEndpoint(
         }),
       then: Actions(Fail("Not authorized to lock targets.")),
     })),
-
-    LockInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -119,19 +106,6 @@ const unlock = defineEndpoint(
           capability: MODERATE_CAPABILITY,
         }),
       then: Actions(Fail("Not authorized to lock targets.")),
-    })),
-
-    UnlockInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

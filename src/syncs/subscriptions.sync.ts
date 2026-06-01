@@ -46,19 +46,6 @@ const subscribe = defineEndpoint(
       when: Actions([Subscribing.subscribe, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    SubscribeInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -83,19 +70,6 @@ const unsubscribe = defineEndpoint(
       when: Actions([Subscribing.unsubscribe, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    UnsubscribeInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -103,7 +77,7 @@ const unsubscribe = defineEndpoint(
 
 const mine = defineEndpoint(
   "/subscriptions/mine",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     SubscriptionsMineResponse: Sync(
       ({ session, user, target, createdAt, subscriptions }) => ({
         when: Actions(Request({ session })),
@@ -125,19 +99,6 @@ const mine = defineEndpoint(
         then: Actions(Respond<SubscriptionsMineOutput>({ subscriptions })),
       }),
     ),
-
-    SubscriptionsMineInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -145,7 +106,7 @@ const mine = defineEndpoint(
 
 const isSubscribed = defineEndpoint(
   "/subscriptions/isSubscribed",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     IsSubscribedResponse: Sync(({ session, target, user, subscribed }) => ({
       when: Actions(Request({ session, target })),
       where: async (frames) => {
@@ -157,19 +118,6 @@ const isSubscribed = defineEndpoint(
         );
       },
       then: Actions(Respond<IsSubscribedOutput>({ subscribed })),
-    })),
-
-    IsSubscribedInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

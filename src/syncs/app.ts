@@ -4,7 +4,7 @@ import {
   syncMap,
 } from "@concepts/Requesting/api.ts";
 import type { ID } from "@utils/types.ts";
-import { authApi } from "./auth.sync.ts";
+import { authApi, InvalidSession } from "./auth.sync.ts";
 import { bookmarksApi } from "./bookmarks.sync.ts";
 import { categoriesApi } from "./categories.sync.ts";
 import { eventSyncs } from "./events.sync.ts";
@@ -49,6 +49,7 @@ export const api = {
 export const syncs = {
   ...syncMap(api),
   ...eventSyncs,
+  InvalidSession,
 };
 
 export default syncs;

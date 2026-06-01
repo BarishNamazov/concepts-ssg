@@ -47,6 +47,8 @@ interface PostCardProps {
   locked: boolean;
   /** Pin scope — the conversation id. */
   scope: string;
+  /** New since the reader's last visit — gets a subtle highlight + badge. */
+  isUnread?: boolean;
   onChanged: () => void;
 }
 
@@ -58,6 +60,7 @@ export function PostCard({
   acceptedAnswer,
   locked,
   scope,
+  isUnread = false,
   onChanged,
 }: PostCardProps) {
   const { session, me, can } = useAuth();
@@ -79,6 +82,8 @@ export function PostCard({
     [postId],
   );
   const isTrashed = trashed.data?.trashed ?? false;
+  // Highlight new posts, but let the trashed/accepted states take precedence.
+  const highlightUnread = isUnread && !isTrashed && !isAccepted;
 
   async function saveEdit(content: string) {
     if (!session) return;
@@ -154,7 +159,9 @@ export function PostCard({
           ? "border-destructive/40 opacity-75"
           : isAccepted
             ? "border-emerald-500/50 ring-1 ring-emerald-500/20"
-            : "border-border",
+            : highlightUnread
+              ? "border-primary/40 bg-primary/[0.04] ring-1 ring-primary/10"
+              : "border-border",
       )}
     >
       {isTrashed ? (
@@ -172,6 +179,11 @@ export function PostCard({
             <time className="text-muted-foreground" title={postId}>
               {relativeTime(node.post.createdAt)}
             </time>
+            {highlightUnread ? (
+              <span className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-primary">
+                New
+              </span>
+            ) : null}
             {edited ? (
               <>
                 <span className="text-muted-foreground">·</span>

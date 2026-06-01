@@ -42,19 +42,6 @@ const create = defineEndpoint(
       when: Actions([Tagging.createTag, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    TagCreateInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -79,19 +66,6 @@ const add = defineEndpoint(
       when: Actions([Tagging.addTag, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    TagAddInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -115,19 +89,6 @@ const remove = defineEndpoint(
     TagRemoveError: Sync(({ error }) => ({
       when: Actions([Tagging.removeTag, {}, { error }]),
       then: Actions(Fail(error)),
-    })),
-
-    TagRemoveInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

@@ -8,7 +8,7 @@
  *   POST /trash/list      {}               -> { trashed }
  *   POST /trash/isTrashed { item }          -> { trashed }
  */
-import { Sessioning, Trashing } from "@concepts";
+import { Trashing } from "@concepts";
 import {
   type ActionOk,
   defineEndpoint,
@@ -66,19 +66,6 @@ const trash = defineEndpoint(
         }),
       then: Actions(Fail("Not authorized to trash items.")),
     })),
-
-    TrashInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -122,19 +109,6 @@ const restore = defineEndpoint(
         }),
       then: Actions(Fail("Not authorized to restore items.")),
     })),
-
-    RestoreInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -177,19 +151,6 @@ const purge = defineEndpoint(
           capability: MODERATE_CAPABILITY,
         }),
       then: Actions(Fail("Not authorized to purge items.")),
-    })),
-
-    PurgeInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

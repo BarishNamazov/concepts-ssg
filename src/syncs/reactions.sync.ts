@@ -40,19 +40,6 @@ const add = defineEndpoint(
       when: Actions([Reacting.react, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    ReactionAddInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -76,19 +63,6 @@ const remove = defineEndpoint(
     ReactionRemoveError: Sync(({ error }) => ({
       when: Actions([Reacting.unreact, {}, { error }]),
       then: Actions(Fail(error)),
-    })),
-
-    ReactionRemoveInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

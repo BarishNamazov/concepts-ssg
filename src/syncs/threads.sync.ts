@@ -87,7 +87,7 @@ function parseLinkTargets(content: string): string[] {
 
 const threadCreate = defineEndpoint(
   "/threads/create",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     ThreadCreateRequest: Sync(({ session, content, user }) => ({
       when: Actions(Request({ session, content })),
       where: async (frames) =>
@@ -125,19 +125,6 @@ const threadCreate = defineEndpoint(
           node,
         }),
       ),
-    })),
-
-    ThreadCreateInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
@@ -209,19 +196,6 @@ const threadReply = defineEndpoint(
         [Conversing.reply, {}, { node }],
       ),
       then: Actions(Respond<ThreadReplyOutput>({ post, node })),
-    })),
-
-    ThreadReplyInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
 
     ThreadReplyLocked: Sync(
@@ -457,19 +431,6 @@ const postEdit = defineEndpoint(
       },
       then: Actions(Fail("Not authorized to edit this post.")),
     })),
-
-    PostEditInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -588,19 +549,6 @@ const postDelete = defineEndpoint(
         return frames.filter(($) => $[author] !== $[user]);
       },
       then: Actions(Fail("Not authorized to delete this post.")),
-    })),
-
-    PostDeleteInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );

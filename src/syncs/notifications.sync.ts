@@ -30,7 +30,7 @@ type DismissOutput = ActionOk<typeof Notifying, "dismiss">;
 
 const list = defineEndpoint(
   "/notifications/list",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     NotificationsListResponse: Sync(
       ({
         session,
@@ -66,19 +66,6 @@ const list = defineEndpoint(
         then: Actions(Respond<NotificationsListOutput>({ notifications })),
       }),
     ),
-
-    NotificationsListInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -86,7 +73,7 @@ const list = defineEndpoint(
 
 const unreadCount = defineEndpoint(
   "/notifications/unreadCount",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     NotificationsUnreadCountResponse: Sync(({ session, user, count }) => ({
       when: Actions(Request({ session })),
       where: async (frames) => {
@@ -98,19 +85,6 @@ const unreadCount = defineEndpoint(
         );
       },
       then: Actions(Respond<NotificationsUnreadCountOutput>({ count })),
-    })),
-
-    NotificationsUnreadCountInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
@@ -136,19 +110,6 @@ const markRead = defineEndpoint(
       when: Actions([Notifying.markRead, {}, { error }]),
       then: Actions(Fail(error)),
     })),
-
-    NotificationsMarkReadInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
-    })),
   }),
 );
 
@@ -156,7 +117,7 @@ const markRead = defineEndpoint(
 
 const markAllRead = defineEndpoint(
   "/notifications/markAllRead",
-  ({ Sync, Actions, Request, Respond, Fail }) => ({
+  ({ Sync, Actions, Request, Respond }) => ({
     NotificationsMarkAllReadRequest: Sync(({ session, user }) => ({
       when: Actions(Request({ session })),
       where: async (frames) =>
@@ -167,19 +128,6 @@ const markAllRead = defineEndpoint(
     NotificationsMarkAllReadResponse: Sync(({ recipient }) => ({
       when: Actions([Notifying.markAllRead, {}, { recipient }]),
       then: Actions(Respond<MarkAllReadOutput>({ recipient })),
-    })),
-
-    NotificationsMarkAllReadInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
@@ -204,19 +152,6 @@ const dismiss = defineEndpoint(
     NotificationsDismissError: Sync(({ error }) => ({
       when: Actions([Notifying.dismiss, {}, { error }]),
       then: Actions(Fail(error)),
-    })),
-
-    NotificationsDismissInvalidSession: Sync(({ session, active }) => ({
-      when: Actions(Request({ session })),
-      where: async (frames) => {
-        frames = await frames.query(
-          Sessioning._isActive,
-          { session },
-          { active },
-        );
-        return frames.filter(($) => $[active] === false);
-      },
-      then: Actions(Fail("Invalid or expired session.")),
     })),
   }),
 );
