@@ -772,7 +772,7 @@ Client code binds the generic SDK to the app type:
 import { createClient } from "../src/sdk/index.ts";
 import type { ForumApi } from "../src/syncs/app.ts";
 
-const api = createClient<ForumApi>({ baseUrl: "http://localhost:8000/api" });
+const api = createClient<ForumApi>();
 const login = await api.auth.login({ username, password });
 ```
 
@@ -815,6 +815,9 @@ import type { ForumApi } from "../src/syncs/app.ts";
 const api = createClient<ForumApi>({ baseUrl });
 ```
 
+If `baseUrl` is omitted, the SDK reads `REQUESTING_API_BASE_URL` and falls back
+to same-origin `/api`.
+
 ### Type Flow
 
 1. Sync files declare Requesting endpoints with
@@ -848,7 +851,7 @@ is inferred from the server's typed Requesting endpoint declarations in
 import { createClient } from "../src/sdk/index.ts";
 import type { ForumApi } from "../src/syncs/app.ts";
 
-const api = createClient<ForumApi>({ baseUrl: "http://localhost:8000/api" });
+const api = createClient<ForumApi>();
 ```
 
 This mirrors Eden Treaty’s shape: the server exports an app type, and the client

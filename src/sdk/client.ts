@@ -11,9 +11,7 @@
  * `POST {baseUrl}{path}` request:
  *
  * ```ts
- * const api = createClient<ForumApi>({
- *   baseUrl: "http://localhost:8000/api",
- * });
+ * const api = createClient<ForumApi>();
  *
  * // grouped — property access mirrors the path segments
  * await api.auth.login({ username, password });
@@ -51,7 +49,7 @@ export type HeadersOption =
 export interface ClientOptions {
   /**
    * Base URL every request is prefixed with, including the `/api` segment.
-   * Defaults to `http://localhost:8000/api`.
+   * Defaults to `REQUESTING_API_BASE_URL`, then `/api`.
    */
   baseUrl?: string;
   /**
@@ -101,7 +99,28 @@ export type GroupedClient<C extends ContractShape> = {
 export type Client<C extends ContractShape> = IndexedClient<C> &
   GroupedClient<C>;
 
-const DEFAULT_BASE_URL = "http://localhost:8000/api";
+const FALLBACK_BASE_URL = "/api";
+
+function cleanBaseUrl(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function configuredBaseUrl(): string | undefined {
+  try {
+    return cleanBaseUrl(process.env.REQUESTING_API_BASE_URL);
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveBaseUrl(baseUrl: string | undefined): string {
+  return (
+    cleanBaseUrl(baseUrl) ??
+    configuredBaseUrl() ??
+    FALLBACK_BASE_URL
+  ).replace(/\/$/, "");
+}
 
 /**
  * Builds the request path from accumulated proxy segments. A single segment
@@ -210,7 +229,7 @@ function makeProxy(
 export function createClient<C extends ContractShape>(
   options: ClientOptions = {},
 ): Client<C> {
-  const baseUrl = (options.baseUrl ?? DEFAULT_BASE_URL).replace(/\/$/, "");
+  const baseUrl = resolveBaseUrl(options.baseUrl);
   const fetchImpl = options.fetch ?? globalThis.fetch;
   const call = (path: string, body: unknown) =>
     request(fetchImpl, baseUrl, options.headers, path, body);

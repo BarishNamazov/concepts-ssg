@@ -9,8 +9,8 @@
  * backend origin out of the browser bundle and sidesteps CORS in every
  * environment.
  */
-import { createClient } from "@backend/sdk";
 import type { ForumApi, Input, Output } from "@backend/api";
+import { createClient } from "@backend/sdk";
 
 /** Every endpoint path string, e.g. `"/threads/list"`. */
 export type Path = keyof ForumApi & string;
@@ -55,6 +55,6 @@ export function unwrap<T>(result: T | ApiError): T {
  * await api.reactions.add({ session, target, kind: "👍" });
  * ```
  */
-export const api = createClient<ForumApi>({ baseUrl: "/api" });
+export const api = createClient<ForumApi>();
 
 export default api;

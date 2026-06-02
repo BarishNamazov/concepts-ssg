@@ -8,10 +8,12 @@ backend implementation or app-specific view types.
 import { createClient } from "./sdk";
 import type { ForumApi, Result } from "./syncs/app.ts";
 
-const api = createClient<ForumApi>({
-  baseUrl: "http://localhost:8000/api",
-});
+const api = createClient<ForumApi>();
 ```
+
+When `baseUrl` is omitted, the SDK uses `REQUESTING_API_BASE_URL`, then
+same-origin `/api`. The configured URL should include the API prefix, for
+example `http://localhost:8000/api`.
 
 The forum binds the SDK to its API in `src/syncs/app.ts`:
 
