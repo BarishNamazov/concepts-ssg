@@ -8,6 +8,8 @@ import FrontmatteringConcept from "./Frontmattering/FrontmatteringConcept.ts";
 import LayoutingConcept from "./Layouting/LayoutingConcept.ts";
 import PublishingConcept from "./Publishing/PublishingConcept.ts";
 import RoutingConcept from "./Routing/RoutingConcept.ts";
+import ServingConcept from "./Serving/ServingConcept.ts";
+import WatchingConcept from "./Watching/WatchingConcept.ts";
 
 type ConceptConstructor = new (namespace?: string) => object;
 
@@ -21,6 +23,8 @@ export const conceptClasses = {
   Layouting: LayoutingConcept,
   Publishing: PublishingConcept,
   Routing: RoutingConcept,
+  Serving: ServingConcept,
+  Watching: WatchingConcept,
 } as const satisfies Record<string, ConceptConstructor>;
 
 export type ConceptName = keyof typeof conceptClasses;
@@ -64,3 +68,5 @@ export const Collecting = appConcepts.Collecting;
 export const Layouting = appConcepts.Layouting;
 export const Publishing = appConcepts.Publishing;
 export const Routing = appConcepts.Routing;
+export const Serving = appConcepts.Serving;
+export const Watching = appConcepts.Watching;

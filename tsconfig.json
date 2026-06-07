@@ -19,7 +19,8 @@
       "@concepts": ["./src/concepts/concepts.ts"],
       "@concepts/*": ["./src/concepts/*"],
       "@utils/*": ["./src/utils/*"],
-      "@syncs": ["./src/syncs/app.ts"]
+      "@syncs": ["./src/syncs/app.ts"],
+      "@syncs/*": ["./src/syncs/*"]
     }
   },
   "include": ["src"]
