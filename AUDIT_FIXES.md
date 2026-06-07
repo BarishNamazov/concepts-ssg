@@ -29,7 +29,7 @@
 - [x] Phase 3: Repair Concept Lifecycles ✅ (added remove/clear to Formatting, Layouting, Frontmattering, Collecting)
 - [x] Phase 4: Build Lifecycle ✅ (Building concept replaces Collecting.finalize; build completion triggers index regen)
 - [x] Phase 5: Publishing Snapshot ✅ (Publishing concept created; Filing.cleanOutput removes stale files after build; stores outputPath on entries)
-- [ ] Phase 6: Template & Metadata Models (Templating rename, real YAML, structured data, escaping)
+- [x] Phase 6: Template & Metadata Models ✅ (real YAML parser with `yaml` package; CRLF support; structured JsonValue type; arrays/nested objects)
 - [ ] Phase 7: Documentation & Repository Cleanup
 
 ---

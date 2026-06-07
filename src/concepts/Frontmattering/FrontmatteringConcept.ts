@@ -1,4 +1,5 @@
 import type { Empty, ID } from "@utils/types.ts";
+import { parse as parseYaml } from "yaml";
 
 type Entry = ID;
 
@@ -9,10 +10,35 @@ interface EntryDoc {
   body: string;
 }
 
-/** Frontmattering [Entry] — extract structured metadata from the header of content files. */
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+/**
+ * Frontmattering [Document]
+ *
+ * **purpose** let metadata travel with a textual document while remaining
+ *   independently accessible from its body
+ *
+ * **principle** after parsing a document with a fenced metadata header, the
+ *   metadata fields and clean body can be retrieved separately
+ */
 export default class FrontmatteringConcept {
   private entries = new Map<Entry, EntryDoc>();
 
+  /**
+   * parse ({ entry, raw, command? }): ({ entry, command? })
+   *
+   * **requires** none
+   *
+   * **effects** stores parsed frontmatter and body for the entry. Supports
+   *   both LF and CRLF line endings. If no valid frontmatter fence is found,
+   *   the entire raw content becomes the body.
+   */
   async parse({
     entry,
     raw,
@@ -25,19 +51,22 @@ export default class FrontmatteringConcept {
     let frontmatter: string | null = null;
     let body: string;
 
-    if (raw.startsWith("---\n")) {
+    // Normalize CRLF to LF for consistent fence detection
+    const normalized = raw.replace(/\r\n/g, "\n");
+
+    if (normalized.startsWith("---\n")) {
       const contentStart = 4;
-      const closingIndex = raw.indexOf("\n---", contentStart);
+      const closingIndex = normalized.indexOf("\n---", contentStart);
       if (closingIndex !== -1) {
-        frontmatter = raw.substring(contentStart, closingIndex);
+        frontmatter = normalized.substring(contentStart, closingIndex);
         let bodyStart = closingIndex + 4;
-        if (raw[bodyStart] === "\n") bodyStart++;
-        body = raw.substring(bodyStart);
+        if (normalized[bodyStart] === "\n") bodyStart++;
+        body = normalized.substring(bodyStart);
       } else {
-        body = raw;
+        body = normalized;
       }
     } else {
-      body = raw;
+      body = normalized;
     }
 
     const existing = this.entries.get(entry);
@@ -57,13 +86,6 @@ export default class FrontmatteringConcept {
     return {};
   }
 
-  /**
-   * remove ({ entry }): ({ entry }) | ({ error })
-   *
-   * **requires** `entry` is an existing parsed entry
-   *
-   * **effects** removes the parsed entry from state
-   */
   async remove({
     entry,
   }: {
@@ -105,9 +127,17 @@ export default class FrontmatteringConcept {
   }): Promise<Array<{ value: string | number | boolean }>> {
     const doc = this.entries.get(entry);
     if (!doc) return [];
-    const fields = this.parseYaml(doc.frontmatter);
+    const fields = this.#parseFrontmatter(doc.frontmatter);
     if (!(field in fields)) return [];
-    return [{ value: fields[field] }];
+    const val = fields[field];
+    if (
+      typeof val === "string" ||
+      typeof val === "number" ||
+      typeof val === "boolean"
+    ) {
+      return [{ value: val }];
+    }
+    return [];
   }
 
   async _getAllFields({
@@ -117,39 +147,32 @@ export default class FrontmatteringConcept {
   }): Promise<Array<{ fields: Record<string, string | number | boolean> }>> {
     const doc = this.entries.get(entry);
     if (!doc) return [];
-    const fields = this.parseYaml(doc.frontmatter);
-    return [{ fields }];
+    const fields = this.#parseFrontmatter(doc.frontmatter);
+    const flat: Record<string, string | number | boolean> = {};
+    for (const [key, val] of Object.entries(fields)) {
+      if (
+        typeof val === "string" ||
+        typeof val === "number" ||
+        typeof val === "boolean"
+      ) {
+        flat[key] = val;
+      } else {
+        flat[key] = JSON.stringify(val);
+      }
+    }
+    return [{ fields: flat }];
   }
 
-  private parseYaml(
-    yaml: string | null,
-  ): Record<string, string | number | boolean> {
+  /** Parse YAML frontmatter string into a flat key-value map. */
+  #parseFrontmatter(yaml: string | null): Record<string, JsonValue> {
     if (!yaml) return {};
-    const result: Record<string, string | number | boolean> = {};
-    const lines = yaml.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-      const colonIndex = trimmed.indexOf(":");
-      if (colonIndex === -1) continue;
-      const key = trimmed.substring(0, colonIndex).trim();
-      const rawValue = trimmed.substring(colonIndex + 1).trim();
-      result[key] = this.parseYamlValue(rawValue);
+    try {
+      const parsed = parseYaml(yaml);
+      if (parsed === null || parsed === undefined) return {};
+      if (typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      return parsed as Record<string, JsonValue>;
+    } catch {
+      return {};
     }
-    return result;
-  }
-
-  private parseYamlValue(raw: string): string | number | boolean {
-    if (raw === "true") return true;
-    if (raw === "false") return false;
-    const num = Number(raw);
-    if (!Number.isNaN(num) && raw !== "") return num;
-    if (
-      (raw.startsWith('"') && raw.endsWith('"')) ||
-      (raw.startsWith("'") && raw.endsWith("'"))
-    ) {
-      return raw.slice(1, -1);
-    }
-    return raw;
   }
 }
