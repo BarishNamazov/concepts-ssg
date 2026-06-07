@@ -2,6 +2,7 @@ import { SyncConcept } from "@engine";
 import BuildingConcept from "./Building/BuildingConcept.ts";
 import CollectingConcept from "./Collecting/CollectingConcept.ts";
 import CommandingConcept from "./Commanding/CommandingConcept.ts";
+import CommandLineConcept from "./CommandLine/CommandLineConcept.ts";
 import FilingConcept from "./Filing/FilingConcept.ts";
 import FormattingConcept from "./Formatting/FormattingConcept.ts";
 import FrontmatteringConcept from "./Frontmattering/FrontmatteringConcept.ts";
@@ -16,6 +17,7 @@ type ConceptConstructor = new (namespace?: string) => object;
 export const conceptClasses = {
   Building: BuildingConcept,
   Commanding: CommandingConcept,
+  CommandLine: CommandLineConcept,
   Filing: FilingConcept,
   Formatting: FormattingConcept,
   Frontmattering: FrontmatteringConcept,
@@ -37,6 +39,7 @@ type ConceptInstances = {
 export interface CreateConceptsOptions {
   engine?: SyncConcept;
   namespaces?: ConceptNamespaces;
+  overrides?: Partial<ConceptInstances>;
 }
 
 export function createConcepts(
@@ -44,11 +47,13 @@ export function createConcepts(
 ): { Engine: SyncConcept } & ConceptInstances {
   const Engine = options.engine ?? new SyncConcept();
   const namespaces = options.namespaces ?? {};
+  const overrides = options.overrides ?? {};
   const concepts = Object.fromEntries(
-    Object.entries(conceptClasses).map(([name, Concept]) => [
-      name,
-      Engine.instrumentConcept(new Concept(namespaces[name as ConceptName])),
-    ]),
+    Object.entries(conceptClasses).map(([name, Concept]) => {
+      const override = overrides[name as ConceptName];
+      const instance = override ?? new Concept(namespaces[name as ConceptName]);
+      return [name, Engine.instrumentConcept(instance)];
+    }),
   ) as ConceptInstances;
 
   return { Engine, ...concepts };
@@ -61,6 +66,7 @@ const appConcepts = createConcepts();
 export const Engine = appConcepts.Engine;
 export const Building = appConcepts.Building;
 export const Commanding = appConcepts.Commanding;
+export const CommandLine = appConcepts.CommandLine;
 export const Filing = appConcepts.Filing;
 export const Formatting = appConcepts.Formatting;
 export const Frontmattering = appConcepts.Frontmattering;

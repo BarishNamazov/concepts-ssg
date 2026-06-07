@@ -10,7 +10,9 @@
 import type { AppConcepts } from "@concepts";
 import { createAssetsSync } from "./assets.sync";
 import { createBuildSync } from "./build.sync";
+import { createCliSyncs } from "./cli.sync";
 import { createContentSync } from "./content.sync";
+import { createDevSyncs } from "./dev.sync";
 import { createDiscoverySync } from "./discovery.sync";
 import { createErrorsSync } from "./errors.sync";
 import { createPublishingSync } from "./publishing.sync";
@@ -25,11 +27,15 @@ export function createSyncs(concepts: AppConcepts) {
     ...createPublishingSync(concepts),
     ...createErrorsSync(concepts),
     ...createAssetsSync(concepts),
+    ...createCliSyncs(concepts),
+    ...createDevSyncs(concepts),
   };
 }
 
 // Default instance using module-level singletons
 import {
+  CommandLine as _CommandLine,
+  Serving as _Serving,
   Building,
   Collecting,
   Commanding,
@@ -39,17 +45,21 @@ import {
   Layouting,
   Publishing,
   Routing,
+  Watching,
 } from "@concepts";
 
 const defaultSyncs = createSyncs({
   Building,
   Collecting,
   Commanding,
+  CommandLine: _CommandLine,
   Filing,
   Formatting,
   Frontmattering,
   Layouting,
   Publishing,
   Routing,
+  Serving: _Serving,
+  Watching,
 } as AppConcepts);
 export default defaultSyncs;
