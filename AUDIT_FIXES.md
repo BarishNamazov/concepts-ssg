@@ -26,8 +26,8 @@
 - [x] Added regression tests for: missing source directory, missing layouts, route collisions, scan-specific reads, test isolation
 
 ### Remaining Phases
-- [ ] Phase 3: Repair Concept Lifecycles (Filing scan IDs, remove actions, clear semantics)
-- [ ] Phase 4: Build Lifecycle (Building concept, remove Collecting.finalize)
+- [x] Phase 3: Repair Concept Lifecycles ✅ (added remove/clear to Formatting, Layouting, Frontmattering, Collecting)
+- [x] Phase 4: Build Lifecycle ✅ (Building concept replaces Collecting.finalize; build completion triggers index regen)
 - [ ] Phase 5: Publishing Snapshot (Publishing concept, staging, commit, stale removal)
 - [ ] Phase 6: Template & Metadata Models (Templating rename, real YAML, structured data, escaping)
 - [ ] Phase 7: Documentation & Repository Cleanup

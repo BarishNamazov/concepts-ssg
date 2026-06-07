@@ -145,6 +145,27 @@ export default class LayoutingConcept {
     return [{ composed: doc.composed }];
   }
 
+  /**
+   * remove ({ name }): ({ name }) | ({ error })
+   *
+   * **requires** `name` is an existing layout
+   *
+   * **effects** removes the layout definition and its dependency record
+   */
+  async remove({
+    name,
+  }: {
+    name: string;
+  }): Promise<{ name: string } | { error: string }> {
+    const id = name as Layout;
+    if (!this.layouts.has(id)) {
+      return { error: `Layout not found: ${name}` };
+    }
+    this.layouts.delete(id);
+    this.layoutDeps.delete(id);
+    return { name };
+  }
+
   #parseUses(source: string): Layout[] {
     const names = new Set<string>();
     for (const m of source.matchAll(SELF_CLOSE_RE)) {

@@ -1,4 +1,5 @@
 import { SyncConcept } from "@engine";
+import BuildingConcept from "./Building/BuildingConcept.ts";
 import CollectingConcept from "./Collecting/CollectingConcept.ts";
 import CommandingConcept from "./Commanding/CommandingConcept.ts";
 import FilingConcept from "./Filing/FilingConcept.ts";
@@ -10,6 +11,7 @@ import RoutingConcept from "./Routing/RoutingConcept.ts";
 type ConceptConstructor = new (namespace?: string) => object;
 
 export const conceptClasses = {
+  Building: BuildingConcept,
   Commanding: CommandingConcept,
   Filing: FilingConcept,
   Formatting: FormattingConcept,
@@ -51,6 +53,7 @@ export type AppConcepts = ReturnType<typeof createConcepts>;
 const appConcepts = createConcepts();
 
 export const Engine = appConcepts.Engine;
+export const Building = appConcepts.Building;
 export const Commanding = appConcepts.Commanding;
 export const Filing = appConcepts.Filing;
 export const Formatting = appConcepts.Formatting;

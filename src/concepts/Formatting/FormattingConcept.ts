@@ -64,4 +64,35 @@ export default class FormattingConcept {
     if (!doc) return [];
     return [{ source: doc.source, format: doc.format }];
   }
+
+  /**
+   * remove ({ entry }): ({ entry }) | ({ error })
+   *
+   * **requires** `entry` is an existing formatted entry
+   *
+   * **effects** removes the rendered entry from state
+   */
+  async remove({
+    entry,
+  }: {
+    entry: ID;
+  }): Promise<{ entry: ID } | { error: string }> {
+    if (!this.entries.has(entry)) {
+      return { error: `Entry not found: ${entry}` };
+    }
+    this.entries.delete(entry);
+    return { entry };
+  }
+
+  /**
+   * clear (): {}
+   *
+   * **requires** nothing
+   *
+   * **effects** removes all rendered entries from state
+   */
+  async clear(): Promise<Record<PropertyKey, never>> {
+    this.entries.clear();
+    return {};
+  }
 }

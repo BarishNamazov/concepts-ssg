@@ -11,6 +11,7 @@ import type { AppConcepts } from "@concepts";
 import { actions, type Sync } from "@engine";
 
 export function createSyncs({
+  Building,
   Collecting,
   Commanding,
   Filing,
@@ -19,7 +20,7 @@ export function createSyncs({
   Layouting,
   Routing,
 }: AppConcepts) {
-  // ── 0. build command → configure + scans + finalize + succeed ──────────
+  // ── 0. build command → configure + scans + complete ──────────────────
 
   const BuildCommand: Sync = ({ command, args, source, output, layouts }) => ({
     when: actions([
@@ -38,6 +39,7 @@ export function createSyncs({
         };
       }),
     then: actions(
+      [Building.start, { command }],
       [Filing.clear, {}],
       [Collecting.clear, {}],
       [Frontmattering.clear, {}],
@@ -62,7 +64,7 @@ export function createSyncs({
           command,
         },
       ],
-      [Collecting.finalize, {}],
+      [Building.complete, { build: command }],
       [Commanding.succeed, { command }],
     ),
   });
@@ -253,7 +255,7 @@ export function createSyncs({
     ),
   });
 
-  // ── 6. finalize → regenerate index pages ──────────────────────────────
+  // ── 6. build complete → regenerate index pages ──────────────────────
 
   const FinalizeTriggersIndexRegen: Sync = ({
     entry,
@@ -266,7 +268,7 @@ export function createSyncs({
     vars,
     collName,
   }) => ({
-    when: actions([Collecting.finalize, {}, {}]),
+    when: actions([Building.complete, {}, {}]),
     where: async (frames) => {
       frames = await frames.query(Filing._getAll, {}, { entry });
       frames = await frames.query(
@@ -376,6 +378,7 @@ export function createSyncs({
 
 // Default instance using module-level singletons
 import {
+  Building,
   Collecting,
   Commanding,
   Filing,
@@ -386,6 +389,7 @@ import {
 } from "@concepts";
 
 const defaultSyncs = createSyncs({
+  Building,
   Collecting,
   Commanding,
   Filing,

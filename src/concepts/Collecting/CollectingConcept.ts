@@ -51,18 +51,6 @@ export default class CollectingConcept {
   }
 
   /**
-   * finalize (): ({})
-   *
-   * **requires** true
-   *
-   * **effects** none — a no-op semaphore that syncs trigger on to start
-   *   index page regeneration
-   */
-  async finalize(): Promise<Empty> {
-    return {};
-  }
-
-  /**
    * clear (): Empty
    *
    * **requires** nothing
@@ -72,6 +60,25 @@ export default class CollectingConcept {
   async clear(): Promise<Empty> {
     this.indexed.clear();
     return {};
+  }
+
+  /**
+   * remove ({ entry }): ({ entry }) | ({ error })
+   *
+   * **requires** `entry` is an existing collected entry
+   *
+   * **effects** removes the entry from all collection memberships
+   */
+  async remove({
+    entry,
+  }: {
+    entry: Entry;
+  }): Promise<{ entry: Entry } | { error: string }> {
+    if (!this.indexed.has(entry)) {
+      return { error: `Entry not found: ${entry}` };
+    }
+    this.indexed.delete(entry);
+    return { entry };
   }
 
   /**

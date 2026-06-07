@@ -57,6 +57,25 @@ export default class FrontmatteringConcept {
     return {};
   }
 
+  /**
+   * remove ({ entry }): ({ entry }) | ({ error })
+   *
+   * **requires** `entry` is an existing parsed entry
+   *
+   * **effects** removes the parsed entry from state
+   */
+  async remove({
+    entry,
+  }: {
+    entry: Entry;
+  }): Promise<{ entry: Entry } | { error: string }> {
+    if (!this.entries.has(entry)) {
+      return { error: `Entry not found: ${entry}` };
+    }
+    this.entries.delete(entry);
+    return { entry };
+  }
+
   async _getBody({
     entry,
   }: {

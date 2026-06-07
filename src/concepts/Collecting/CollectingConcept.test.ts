@@ -108,11 +108,6 @@ describe("Collecting", () => {
     expect(results).toHaveLength(0);
   });
 
-  test("finalize returns empty", async () => {
-    const result = await Collecting.finalize();
-    expect(result).toEqual({});
-  });
-
   test("principle: collect two entries with same collection, verify _getEntries returns both", async () => {
     await Collecting.collect({
       entry: e1,
