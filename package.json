@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "marked": "^18.0.4",
-    "uuid": "^14.0.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

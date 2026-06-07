@@ -1,4 +1,4 @@
-import { freshID } from "@utils/database.ts";
+import { freshID } from "@utils/id.ts";
 import type { ID } from "@utils/types.ts";
 import { marked } from "marked";
 

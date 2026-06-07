@@ -1,6 +1,6 @@
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { freshID } from "@utils/database.ts";
+import { freshID } from "@utils/id.ts";
 import type { ID } from "@utils/types.ts";
 
 type Publication = ID;

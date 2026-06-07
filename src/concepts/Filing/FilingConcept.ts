@@ -7,7 +7,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import { freshID } from "@utils/database.ts";
+import { freshID } from "@utils/id.ts";
 import type { Empty, ID } from "@utils/types.ts";
 import { Glob } from "bun";
 
