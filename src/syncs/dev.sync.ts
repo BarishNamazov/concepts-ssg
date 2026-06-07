@@ -43,7 +43,17 @@ export function createDevSyncs({
    * Matches: dev issue + server start (ok) + watcher start (ok) +
    *          initial build issue + build succeed => mark dev ready
    */
-  const DevInitialBuildReady: Sync = ({ devCmd, args, srv, w, buildCmd }) => ({
+  const DevInitialBuildReady: Sync = ({
+    devCmd,
+    args,
+    srv,
+    w,
+    buildCmd,
+    port,
+    root,
+    url,
+    cliInvocation,
+  }) => ({
     when: actions(
       [Commanding.issue, { name: "dev", args }, { command: devCmd }],
       [Serving.start, {}, { server: srv }],
@@ -51,7 +61,26 @@ export function createDevSyncs({
       [Commanding.issue, { name: "build" }, { command: buildCmd }],
       [Commanding.succeed, { command: buildCmd }, { command: buildCmd }],
     ),
-    then: actions([Commanding.succeed, { command: devCmd, result: "ready" }]),
+    where: async (frames) => {
+      let enriched = await frames.query(
+        Serving._getServer,
+        { server: srv },
+        { port, root },
+      );
+      enriched = await enriched.query(
+        CommandLine._getByOperation,
+        { operation: devCmd },
+        { invocation: cliInvocation },
+      );
+      return enriched.map((frame) => ({
+        ...frame,
+        [url]: `\n  Dev server    http://localhost:${String(frame[port])}\n`,
+      }));
+    },
+    then: actions(
+      [CommandLine.notice, { invocation: cliInvocation, message: url }],
+      [Commanding.succeed, { command: devCmd, result: "ready" }],
+    ),
   });
 
   /**
@@ -116,6 +145,17 @@ export function createDevSyncs({
     when: actions(
       [Commanding.issue, { name: "dev", args }, { command: devCmd }],
       [Serving.start, {}, { server: srv }],
+      [Watching.start, {}, { error: watchError }],
+    ),
+    then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
+  });
+
+  /**
+   * Watching.start fails — fail the dev command (no Serving.start requirement).
+   */
+  const WatchStartErrorFailsDev: Sync = ({ devCmd, args, watchError }) => ({
+    when: actions(
+      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
       [Watching.start, {}, { error: watchError }],
     ),
     then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
@@ -218,6 +258,7 @@ export function createDevSyncs({
     DevInitialBuildFail,
     DevStartFail,
     DevWatchFail,
+    WatchStartErrorFailsDev,
     DevWatchRebuild,
     DevRebuildSucceed,
     DevRebuildFail,

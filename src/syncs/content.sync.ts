@@ -8,6 +8,7 @@
 
 import {
   Collecting as _Collecting,
+  CommandLine as _CommandLine,
   Filing as _Filing,
   Formatting as _Formatting,
   Frontmattering as _Frontmattering,
@@ -17,6 +18,7 @@ import { actions, type Sync } from "@engine";
 
 type C = {
   Collecting: typeof _Collecting;
+  CommandLine: typeof _CommandLine;
   Filing: typeof _Filing;
   Formatting: typeof _Formatting;
   Frontmattering: typeof _Frontmattering;
@@ -25,6 +27,7 @@ type C = {
 
 export function createContentSync({
   Collecting,
+  CommandLine,
   Filing,
   Formatting,
   Frontmattering,
@@ -77,6 +80,7 @@ export function createContentSync({
         const fieldsObj =
           (frame[fields] as Record<string, string | number | boolean>) ?? {};
         const meta: Record<string, string> = {};
+        meta._entry = String(frame[entry]);
         for (const [key, value] of Object.entries(fieldsObj)) {
           meta[key] = String(value);
         }
@@ -109,17 +113,50 @@ export function createContentSync({
     ]),
   });
 
+  const ParseErrorNotices: Sync = ({
+    invocation,
+    entry,
+    errEntry,
+    errorMsg,
+    message,
+  }) => ({
+    when: actions(
+      [CommandLine.invoke, {}, { invocation }],
+      [Frontmattering.parse, {}, { entry }],
+    ),
+    where: async (frames) => {
+      return (
+        await frames.query(
+          Frontmattering._getParseErrors,
+          {},
+          { entry: errEntry, error: errorMsg },
+        )
+      )
+        .filter((frame) => frame[entry] === frame[errEntry])
+        .map((frame) => ({
+          ...frame,
+          [message]: `YAML frontmatter parse error: ${frame[errorMsg]}`,
+        }));
+    },
+    then: actions([
+      CommandLine.notice,
+      { invocation, message, level: "error" },
+    ]),
+  });
+
   return {
     ReadTriggersParse,
     ParseTriggersRender,
     ParseTriggersRoute,
     ParseTriggersCollect,
     RouteTriggersUpdateIndex,
+    ParseErrorNotices,
   };
 }
 
 const defaultSyncs = createContentSync({
   Collecting: _Collecting,
+  CommandLine: _CommandLine,
   Filing: _Filing,
   Formatting: _Formatting,
   Frontmattering: _Frontmattering,

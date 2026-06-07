@@ -1,92 +1,146 @@
 ---
-title: Patterns for Concept Composition
+title: Composition Patterns in This Project
 layout: Blog
-date: 2026-05-28
+date: 2026-06-02
 collections: posts
-description: Common patterns that emerge when composing concepts with synchronizations — threading, fan-out, error propagation, and batch barriers.
+description: "The recurring sync patterns in this repo — fan-out, join, barrier, context threading, aggregation, and error shapes — with real code."
 ---
 
-## Patterns for Concept Composition
+## Composition Patterns in This Project
 
-After building several applications with Concept Design, certain patterns emerge. Here are the most useful ones.
+The sync layer uses a small set of patterns repeatedly. This post documents each pattern with code from the actual sync files.
 
-### Pattern 1: Threading Identity
+## Pattern 1: Fan Out an Array
 
-When you need a concept to track work across multiple syncs, thread an identity through the action chain. Each action receives the identity as an opaque field, ignores it semantically, and returns it in its output.
+A concept returns an array of IDs. The sync turns one frame into many, one per ID.
 
-```typescript
-// BuildCommand passes 'command' through Filing.scan
-then: actions([
-  Filing.scan, { directory, command },
-])
+**The problem:** `Filing.scan` returns `{ entries: ["entry-1", "entry-2", ..., "entry-N"] }`. `Filing.read` takes a single entry ID. The engine does not automatically iterate arrays.
 
-// Error sync captures it from the scan input
-when: actions([Filing.scan, { command }, { error }])
-then: actions([Commanding.fail, { command, error }])
+**The sync** (`discovery.sync.ts`):
+
+```ts
+export const ScanTriggersRead: Sync = ({ entry, entries }) => ({
+  when: actions([Filing.scan, {}, { entries }]),
+  where: (frames) =>
+    frames.flatMap((frame) => {
+      const entryIds = frame[entries] as string[];
+      return entryIds.map((id) => ({ ...frame, [entry]: id }));
+    }),
+  then: actions([Filing.read, { entry }]),
+});
 ```
 
-The `command` field is opaque to `Filing` — it's just a string it passes through. But the syncs use it to associate errors with the originating command.
+If the scan found 20 files, `then` fires `Filing.read` 20 times — once per entry.
 
-### Pattern 2: Fan-Out With Query
+**Where it bends:** The engine currently marks a journal record as consumed after any match, so fan-out syncs that reference the original scan result in `where` queries can fail if another sync already consumed it.
 
-When an action produces a list and each item needs individual processing, use `.query()` or `.flatMap()` in the `where` clause:
+## Pattern 2: Join on an Opaque ID
 
-```typescript
-where: (frames) =>
-  frames.flatMap((frame) => {
-    const ids = frame[entries] as string[];
-    return ids.map((id) => ({ ...frame, [entry]: id }));
-  }),
-then: actions([Filing.read, { entry }]),
+Two independent actions produce results for the same entity. A third action needs both results.
+
+**The problem:** `Formatting.render` produces HTML. `Routing.derive` produces a URL. `Layouting.apply` needs both for the same entry. Rendering and routing happen in parallel after parsing.
+
+**The sync** (`templates.sync.ts`):
+
+```ts
+export const RenderAndRouteTriggersApply: Sync = ({ entry }) => ({
+  when: actions(
+    [Formatting.render, {}, { entry }],
+    [Routing.derive, { entry }, {}],
+  ),
+  where: async (frames) => {
+    frames = await frames.query(Formatting._getHtml, { entry }, { html });
+    frames = await frames.query(Routing._getRoute, { entry }, { route });
+    return frames;
+  },
+  then: actions([Layouting.apply, { entry, html, route }]),
+});
 ```
 
-Each frame fans out into N frames (one per entry). The `then` clause fires once per surviving frame.
+The shared `entry` binding is the join key. Both `when` clauses must match the same value for `entry`. If routing hasn't fired yet for this entry, the sync waits.
 
-### Pattern 3: Error Propagation
+## Pattern 3: Barrier Action
 
-Don't use `{}` as a catch-all output pattern. Match explicit success and failure:
+Some work depends on every entry being processed. A barrier action signals "all entries done."
 
-```typescript
-// Success sync — only matches successful scans
+**The problem:** The blog index lists all posts in the `posts` collection. It cannot render until every post has been collected.
+
+**The barrier:** `Building.complete` fires after all scans and per-file cascades finish (or rather, after scans finish — a known flaw).
+
+**The sync** (`templates.sync.ts`):
+
+```ts
+export const FinalizeTriggersIndexRegen: Sync = ({}) => ({
+  when: actions([Building.complete, {}, {}]),
+  where: async (frames) => {
+    // query Collecting for all entries per collection
+    // find pages with type: index
+    // package collection entries into template data
+    return frames;
+  },
+  then: actions([Layouting.apply, { entry, collectionData }]),
+});
+```
+
+**Where it bends:** `Building.complete` can fire after earlier actions returned errors, so the barrier is unreliable.
+
+## Pattern 4: Thread Context Through Actions
+
+Several actions carry a `command` parameter so error syncs can correlate failures back to the command that started the work.
+
+```ts
+// In build.sync.ts, the command ID is threaded through:
+Filing.scan({ command, root, glob })
+```
+
+Later, an error sync matches on the error output and fails the command:
+
+```ts
+export const ScanErrorFailsBuild: Sync = ({ command, error }) => ({
+  when: actions([Filing.scan, { command }, { error }]),
+  then: actions([Commanding.fail, { command, error }]),
+});
+```
+
+**Where it bends:** Many actions that can fail are invoked without `command`, so their errors cannot reach the error sync. This is tracked in [Sync Layer issues](/issues/sync-layer).
+
+## Pattern 5: Aggregate Frames Explicitly
+
+When a sync needs one summary from many frames, it collapses them.
+
+**The sync** (`reporting.sync.ts`):
+
+```ts
+export const BuildReportStats: Sync = ({}) => ({
+  when: actions([Building.complete, {}, {}]),
+  where: async (frames) => {
+    return frames.collectAs({}) // collapse all frames into one
+  },
+  then: async (frame) => {
+    // query all filing entries, count by source tag
+    // issue CommandLine.notice with summary
+  },
+});
+```
+
+`collectAs` groups frames into batches. The result is one aggregate frame instead of N individual ones.
+
+## Pattern 6: Error Output Shapes
+
+Success and failure are distinguished by output shape, not by status codes or exceptions.
+
+```ts
+// Success: matched by { entries }
 when: actions([Filing.scan, {}, { entries }])
 
-// Error sync — only matches failed scans with command
+// Failure: matched by { error }
 when: actions([Filing.scan, { command }, { error }])
 ```
 
-The empty `{}` input pattern matches any input. But the output pattern discriminates: `{ entries }` for success, `{ error }` for failure.
+Because the engine matches on output shape, a success sync never accidentally fires on a failure. The two patterns are mutually exclusive.
 
-### Pattern 4: Join on Shared Identity
+**Where it bends:** Error outputs need enough context for downstream handling. A render error without a `command` binding cannot be propagated to `Commanding.fail`.
 
-When two actions must complete before a third fires, bind the shared identity in both `when` clauses:
+## Next
 
-```typescript
-when: actions(
-  [Formatting.render, {}, { entry }],
-  [Routing.derive, { entry }, {}],    // binds entry explicitly
-)
-```
-
-Without `{ entry }` in the second clause, the sync would match any route derivation, not just the one for the same entry.
-
-### Pattern 5: Batch Barrier
-
-When you need to wait for all items in a batch to complete before proceeding, use a completion action:
-
-```typescript
-// After all scans and processing, fire Building.complete
-then: actions(
-  [Filing.scan, { layouts }],
-  [Filing.scan, { content }],
-  [Building.complete, { build }],
-)
-
-// Index regen only fires after all content is processed
-when: actions([Building.complete, {}, {}])
-```
-
-The engine processes `then` actions sequentially. Each action's cascading syncs complete before the next `then` action starts. So `Building.complete` is guaranteed to fire after all content has been scanned, read, parsed, rendered, routed, and written.
-
-### Pattern 6: Query Responsibly
-
-Query methods (`_`-prefixed) must always return arrays. They should never mutate state. Keep them pure — a query called twice with the same arguments should return the same result (assuming no intervening mutations).
+Read the [Friction Log](/blog/friction-log) for the catalog of where these patterns break down in practice.

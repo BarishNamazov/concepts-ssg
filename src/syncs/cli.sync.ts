@@ -106,7 +106,10 @@ export function createCliSyncs({
       [CommandLine.waitFor, { mode: "complete" }, { invocation, command }],
       [Commanding.succeed, { command }, { command }],
     ),
-    then: actions([CommandLine.succeed, { invocation }]),
+    then: actions([
+      CommandLine.succeed,
+      { invocation, message: "Build complete." },
+    ]),
   });
 
   const WaitForCompleteFail: Sync = ({ invocation, command, buildError }) => ({

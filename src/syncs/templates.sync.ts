@@ -96,7 +96,6 @@ export function createTemplatesSync({
 
   const FinalizeTriggersIndexRegen: Sync = ({
     entry,
-    typeVar,
     rawPosts,
     posts,
     html,
@@ -104,24 +103,37 @@ export function createTemplatesSync({
     fields,
     vars,
     collName,
+    sortBy,
+    layoutSrc,
   }) => ({
     when: actions([Building.complete, {}, {}]),
     where: async (frames) => {
       frames = await frames.query(Filing._getAll, {}, { entry });
-      frames = await frames.query(
-        Frontmattering._getField,
-        { entry, field: "type" },
-        { value: typeVar },
-      );
-      frames = frames.filter((f) => (f[typeVar] as string) === "index");
-      if (frames.length === 0) return frames;
-
       frames = await frames.query(Formatting._getHtml, { entry }, { html });
+      frames = await frames.query(
+        Frontmattering._getAllFields,
+        { entry },
+        { fields },
+      );
+      frames = frames.map((frame) => {
+        const fieldsObj =
+          (frame[fields] as Record<string, string | number | boolean>) ?? {};
+        const layoutForEntry = String(fieldsObj.layout ?? "default");
+        return { ...frame, [layoutName]: layoutForEntry };
+      });
+      frames = await frames.query(
+        Layouting._getLayout,
+        { name: layoutName },
+        { source: layoutSrc },
+      );
       frames = frames.map((frame) => {
         const bodyHtml = (frame[html] as string) ?? "";
-        const match = bodyHtml.match(/\{\{#each\s+(\w+)\}\}/);
+        const layoutHtml = (frame[layoutSrc] as string) ?? "";
+        const searchIn = layoutHtml.includes("{{#each") ? layoutHtml : bodyHtml;
+        const match = searchIn.match(/\{\{#each\s+(\w+)(?:\s+sort=(\w+))?\}\}/);
         const collectionName = match ? match[1] : "";
-        return { ...frame, [collName]: collectionName };
+        const sortField = match?.[2] ?? "";
+        return { ...frame, [collName]: collectionName, [sortBy]: sortField };
       });
       frames = frames.filter(
         (f) =>
@@ -152,7 +164,17 @@ export function createTemplatesSync({
             clean.push(flat);
           }
         }
-        return { ...frame, [posts]: clean };
+        const currentEntry = frame[entry] as string;
+        const filtered = currentEntry
+          ? clean.filter((c) => c._entry !== currentEntry)
+          : clean;
+        const sortField = (frame[sortBy] as string) ?? "";
+        if (sortField) {
+          filtered.sort((a, b) =>
+            (b[sortField] ?? "").localeCompare(a[sortField] ?? ""),
+          );
+        }
+        return { ...frame, [posts]: filtered };
       });
 
       frames = await frames.query(
@@ -166,7 +188,10 @@ export function createTemplatesSync({
         const fieldsObj =
           (frame[fields] as Record<string, string | number | boolean>) ?? {};
         const collectionName = (frame[collName] as string) ?? "";
-        const bodyHtml = (frame[html] as string) ?? "";
+        const bodyHtml = ((frame[html] as string) ?? "").replace(
+          /\{\{#each\s+(\w+)\s+sort=\w+\}\}/g,
+          "{{#each $1}}",
+        );
         const resolvedLayout = String(fieldsObj.layout ?? "default");
         const siblings = (frame[posts] as Record<string, string>[]) ?? [];
 

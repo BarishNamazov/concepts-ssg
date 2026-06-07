@@ -96,7 +96,7 @@ export class SyncConcept {
   /** The action journal backing all matching. */
   public Action: ActionConcept;
   /** Current verbosity. */
-  public logging = Logging.TRACE;
+  public logging = Logging.OFF;
   /** Memoizes bound/instrumented wrappers per concept instance. */
   private boundActionsByConcept: WeakMap<
     object,
@@ -231,7 +231,11 @@ export class SyncConcept {
       const runThen = thenAction as unknown as (
         args: ActionArguments,
       ) => Promise<unknown>;
-      await runThen(thenRecord);
+      try {
+        await runThen(thenRecord);
+      } catch (err) {
+        console.error(`Sync "${sync.sync}" then-action error: ${String(err)}`);
+      }
     }
   }
 

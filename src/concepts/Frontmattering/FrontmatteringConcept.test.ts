@@ -148,4 +148,48 @@ describe("Frontmattering", () => {
       "title: Hello World\ndate: 2024-01-15\npublished: true",
     );
   });
+
+  test("parse with invalid YAML frontmatter stores parseError", async () => {
+    const entry = "entry:bad-yaml" as ID;
+    const raw = "---\ndescription: An unquoted string with: colon\n---\n# Body";
+
+    await Frontmattering.parse({ entry, raw });
+
+    const errors = await Frontmattering._getParseErrors();
+    const match = errors.find((e) => e.entry === entry);
+    expect(match).toBeDefined();
+    expect(match?.error).toBeDefined();
+  });
+
+  test("_getParseErrors does not include entries without parse errors", async () => {
+    const entry = "entry:good" as ID;
+    const raw = "---\ntitle: Hello\n---\nBody";
+
+    await Frontmattering.parse({ entry, raw });
+
+    const errors = await Frontmattering._getParseErrors();
+    const match = errors.find((e) => e.entry === entry);
+    expect(match).toBeUndefined();
+  });
+
+  test("_getAllFields returns empty for entry with parse error", async () => {
+    const entry = "entry:bad-fields" as ID;
+    const raw = "---\ndescription: Bad: colon in value\n---\n# Body";
+
+    await Frontmattering.parse({ entry, raw });
+
+    const [result] = await Frontmattering._getAllFields({ entry });
+    expect(result.fields).toEqual({});
+  });
+
+  test("valid frontmatter does not produce parseError", async () => {
+    const entry = "entry:valid" as ID;
+    const raw = "---\ntitle: My Post\nauthor: Jane\ndraft: true\n---\n# Hello";
+
+    await Frontmattering.parse({ entry, raw });
+
+    const errors = await Frontmattering._getParseErrors();
+    const match = errors.find((e) => e.entry === entry);
+    expect(match).toBeUndefined();
+  });
 });

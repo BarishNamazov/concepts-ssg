@@ -1,79 +1,97 @@
 ---
-title: Concept Design
-subtitle: Build software from independent, reusable concepts composed by declarative synchronizations. No framework lock-in, no implicit coupling — just clean, composable design.
+title: Concept Design Framework
+subtitle: A static site generator used as a living demonstration of concept design, sync composition, and the brittle edges found in review.
 layout: Home
 ---
 
-## How It Works
+## What This Repo Is
 
-Concept Design separates your application into **concepts** — self-contained behavioral units that know nothing about each other. A concept owns its state, actions, and queries. Concepts are wired together by **synchronizations** (syncs) — declarative `when` / `where` / `then` rules.
+This repository is not just a static site generator. It is a worked example of **concept design**: independent units of behavior are implemented as concepts, then composed by declarative synchronizations.
+
+The example site documents the project from the inside. It explains what the concepts do, how the sync engine moves work through the pipeline, and where the current implementation is still fragile.
 
 <div class="grid-3" style="margin-top: 1.5rem;">
 
 <div class="card">
-<h3>&#9670; Concepts</h3>
-<p class="meta">Independent behavioral units</p>
-<p>A concept defines its own state, actions, and queries. It never imports another concept. Think of it as a micro-service in your process.</p>
+<h3>Concepts Own Behavior</h3>
+<p>Each concept is a small state machine with actions and queries. A concept should not import another concept or assume what application it lives in.</p>
 </div>
 
 <div class="card">
-<h3>&#8644; Syncs</h3>
-<p class="meta">Declarative composition</p>
-<p>Syncs wire concepts together: <em>when</em> an action fires, <em>where</em> conditions hold, <em>then</em> another action occurs. Pure causal rules, no imperative glue.</p>
+<h3>Syncs Compose Work</h3>
+<p>The build is declared as <code>when</code>, <code>where</code>, and <code>then</code> rules over journaled actions instead of imperative orchestration code.</p>
 </div>
 
 <div class="card">
-<h3>&#9889; Engine</h3>
-<p class="meta">Reactive journal</p>
-<p>The engine maintains an append-only action journal. Syncs match against it in real time, binding logic variables and fanning out over query results.</p>
+<h3>Issues Are First-Class</h3>
+<p>The review log is published as part of the example site, grouped by the layer each problem belongs to so the architecture can be improved openly.</p>
 </div>
 
 </div>
 
-## This Site Generator
+## The Demonstration App
 
-This very site is built with Concept Design. Seven concepts power the entire static-site pipeline:
+The generator turns markdown, HTML layouts, and public assets into a static site. The interesting part is how it is decomposed.
 
-| Concept | Responsibility |
-|---|---|
-| `Commanding` | CLI command lifecycle |
-| `Building` | Tracks build progress and completion |
-| `Filing` | Filesystem discovery, reading, and writing |
-| `Frontmattering` | YAML metadata extraction from documents |
-| `Formatting` | Markdown-to-HTML conversion |
-| `Routing` | File path to URL route derivation |
-| `Layouting` | Template composition and rendering |
-| `Collecting` | Collection membership for index pages |
-| `Publishing` | Output snapshot and stale-file cleanup |
+<div class="grid-2" style="margin-top: 1rem;">
 
-Eleven sync rules compose them into a complete build pipeline — from `Commanding.issue("build")` to files on disk.
-
-<div class="callout callout-tip">
-<strong>Try it yourself:</strong> Clone the repo, edit <code>example/pages/</code>, and run <code>bun run src/main.ts build --source example/pages --output example/dist --layouts example/layouts</code>.
+<div class="card">
+<h3>Build Boundary</h3>
+<p class="meta">CommandLine, Commanding, Building</p>
+<p>The process starts with one CLI action. Commands and builds track lifecycle state while syncs decide what happens next.</p>
 </div>
 
-## Explore
+<div class="card">
+<h3>Content Pipeline</h3>
+<p class="meta">Filing, Frontmattering, Formatting, Routing</p>
+<p>Files are discovered, read, split into metadata and body, rendered to HTML, and assigned clean routes.</p>
+</div>
 
-<div class="grid-2" style="margin-top: 1.5rem;">
+<div class="card">
+<h3>Presentation Layer</h3>
+<p class="meta">Layouting, Collecting, Publishing</p>
+<p>Layouts wrap content, collections feed index pages, and final output is written to disk.</p>
+</div>
 
-<a href="/docs" class="card" style="text-decoration: none; color: inherit;">
-<h3>Documentation</h3>
-<p class="meta">Learn the core concepts and sync patterns</p>
-</a>
+<div class="card">
+<h3>Developer Loop</h3>
+<p class="meta">Serving, Watching</p>
+<p>Dev mode serves the output directory, watches source files, rebuilds on change, and reloads browsers.</p>
+</div>
 
-<a href="/tutorials" class="card" style="text-decoration: none; color: inherit;">
-<h3>Tutorials</h3>
-<p class="meta">Step-by-step guides to building with concepts</p>
-</a>
+</div>
+
+## Start Reading
+
+<div class="grid-2" style="margin-top: 1rem;">
 
 <a href="/blog" class="card" style="text-decoration: none; color: inherit;">
-<h3>Blog</h3>
-<p class="meta">Deep dives into concept-design principles</p>
+<h3>Project Field Guide</h3>
+<p class="meta">Blog posts about this repository</p>
+<p>Read the repo as a running system: concepts, syncs, file flow, dev mode, and tradeoffs.</p>
 </a>
 
-<a href="/projects" class="card" style="text-decoration: none; color: inherit;">
-<h3>Projects</h3>
-<p class="meta">Real-world examples built with concepts</p>
+<a href="/issues" class="card" style="text-decoration: none; color: inherit;">
+<h3>Issue Review</h3>
+<p class="meta">Grouped by layer</p>
+<p>Browse the review findings by category: concept design, sync layer, engine, filesystem, and parsing.</p>
 </a>
 
+<a href="/docs/ssg-architecture" class="card" style="text-decoration: none; color: inherit;">
+<h3>Architecture Notes</h3>
+<p class="meta">Concept-by-concept reference</p>
+<p>See how the generator is divided into reusable units and what each one owns.</p>
+</a>
+
+<a href="/blog/friction-log" class="card" style="text-decoration: none; color: inherit;">
+<h3>Friction Log</h3>
+<p class="meta">Where the model bends</p>
+<p>Understand the places where declarative sync composition becomes awkward or brittle.</p>
+</a>
+
+</div>
+
+<div class="callout" style="margin-top: 1.5rem;">
+<strong>Build this site:</strong>
+<pre style="margin: 0.6rem 0 0 0; padding: 0.6rem 1rem;"><code>bun run example:build</code></pre>
 </div>

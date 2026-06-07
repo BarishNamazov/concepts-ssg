@@ -111,7 +111,7 @@ export default class CommandLineConcept {
     }
     doc.status = "READY";
     if (message) doc.message = message;
-    console.log(message ?? "Ready.");
+    if (message) console.log(message);
     return { invocation };
   }
 
@@ -165,7 +165,7 @@ export default class CommandLineConcept {
     }
     doc.status = "SUCCEEDED";
     if (message) doc.message = message;
-    console.log(message ?? "Build complete.");
+    if (message) console.log(message);
     process.exitCode = 0;
     return { invocation };
   }

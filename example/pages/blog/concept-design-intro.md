@@ -1,47 +1,66 @@
 ---
-title: What Is Concept Design?
+title: This Repo in One Pass
 layout: Blog
-date: 2026-06-05
+date: 2026-06-07
 collections: posts
-description: An introduction to the concept-design architecture pattern — why it exists, how it works, and when to use it.
+description: "A source tour of the concept-design framework repo: concepts, syncs, engine, runtime, and the example site."
 ---
 
-## What Is Concept Design?
+## This Repo in One Pass
 
-Concept Design is a software architecture pattern where applications are built from **independent, reusable behavioral units** called concepts, composed by **declarative synchronizations**.
+This project builds a static site generator out of independent behavioral units called **concepts**, then wires them together with declarative **synchronizations**. The example site you are reading is the output of that generator documenting itself.
 
-### The Problem It Solves
+## The Five Layers
 
-Traditional application architectures — MVC, layered, microservices — all suffer from the same fundamental issue: **implicit coupling**. A controller knows about models. A service knows about repositories. A component imports a hook. These dependencies are not declared; they're buried in import statements and method calls.
+| Layer | Path | Role |
+|---|---|---|
+| Concepts | `src/concepts/` | Independent state machines. Each owns its data, actions, and queries. No concept imports another. |
+| Syncs | `src/syncs/` | Declarative `when`/`where`/`then` rules that compose concepts into an application. |
+| Engine | `src/engine/` | The action journal, frame matcher, and sync runner that executes the sync rules. |
+| Runtime | `src/runtime/` | Process adapters: CLI argument parsing and filesystem change watching. |
+| Example | `example/` | Markdown pages, HTML layouts, and public assets that exercise the generator. |
 
-When you try to reuse a piece of functionality in a different context, you discover it's entangled with assumptions about the application it was built for. The authentication module assumes a user profile exists. The profile module assumes a session. The session module assumes HTTP cookies.
+## The Eleven Concepts
 
-Concept Design breaks this chain by enforcing a single rule: **no concept may import another concept**.
+| Concept | What it owns |
+|---|---|
+| `CommandLine` | CLI invocation lifecycle — status, notices, terminal result |
+| `Commanding` | Generic command issue/succeed/fail without knowing what the command does |
+| `Building` | Build lifecycle status — whether a build is running or done |
+| `Filing` | File entries: scan, read, write, output cleanup |
+| `Frontmattering` | Split a document into YAML metadata and markdown body |
+| `Formatting` | Convert markdown body to HTML |
+| `Routing` | Turn a file path into a clean URL, detect collisions |
+| `Layouting` | Define HTML layouts, apply them to rendered content |
+| `Collecting` | Track entry membership in named collections (e.g. "posts", "docs") |
+| `Serving` | Static HTTP server with SSE-based reload |
+| `Watching` | Compare snapshots to detect added/changed/removed files |
 
-### How Concepts Work
+## How It Runs
 
-A concept is a class with:
-- **State** — in-memory maps (or database collections) that store entities
-- **Actions** — async methods that mutate state and return typed results
-- **Queries** — read-only methods that return arrays of rows
+One entry point. One root action. Everything else emerges from syncs.
 
-Concepts are instrumented by the sync engine. Every action invocation creates a journal entry. Syncs match these entries and fire follow-up actions.
-
-```typescript
-// A Filing concept — knows nothing about markdown, layouts, or routing
-class FilingConcept {
-  async scan({ directory, patterns }): Promise<{ entries: ID[] }> { ... }
-  async read({ entry }): Promise<{ entry, content }> { ... }
-  async write({ entry }): Promise<{ entry, outputPath }> { ... }
-}
+```
+bun run example:build
+  → CommandLine.invoke({ argv })
+  → Commanding.issue("build")
+  → Building.start
+  → Filing.scan(layouts) → Filing.scan(content) → Filing.scan(public)
+  → per-file cascade (parse → render → route → collect → layout → write)
+  → Building.complete
+  → index page regeneration
+  → Filing.cleanOutput
+  → Commanding.succeed
 ```
 
-### Why It Matters
+No function calls any of those steps. Each step fires because a sync matched the previous step's journal record.
 
-**Testability.** Each concept is tested in isolation with an in-memory state. No mocks, no stubs — just instantiate and call actions.
+## The Design Constraint
 
-**Reusability.** A `Routing` concept built for a static site generator can be reused in a CMS, a wiki, or a documentation tool — without modification.
+Concepts cannot import each other. `Formatting` turns markdown into HTML but does not know what a route is. `Routing` derives URLs but does not know about frontmatter. `Layouting` wraps content in HTML but does not know about files.
 
-**Clarity.** The application's behavior is declared in sync files, not scattered across middleware, hooks, and callbacks. You can read the syncs and understand exactly what happens when.
+The connections — "after parsing, render the content" or "once rendering and routing are both done, apply a layout" — are expressed in sync files, not inside the concepts.
 
-**Modularity.** Swap out concepts without touching anything else. Want a different template engine? Replace `Layouting` with `HandlebarsTemplating`. The syncs (and all other concepts) don't change.
+## What To Read Next
+
+Start with [How the SSG Is Built](/blog/building-ssg) for the decomposition decisions, then [How Syncs Wire This Repo](/blog/syncs-in-this-repo) for the composition layer. The [Friction Log](/blog/friction-log) catalogues where the design still bends.

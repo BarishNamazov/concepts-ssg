@@ -8,6 +8,8 @@ interface EntryDoc {
   raw: string;
   frontmatter: string | null;
   body: string;
+  fields: Record<string, JsonValue>;
+  parseError: string | null;
 }
 
 type JsonValue =
@@ -69,13 +71,24 @@ export default class FrontmatteringConcept {
       body = normalized;
     }
 
+    const { fields, parseError } = this.#parseFrontmatter(frontmatter);
+
     const existing = this.entries.get(entry);
     if (existing) {
       existing.raw = raw;
       existing.frontmatter = frontmatter;
       existing.body = body;
+      existing.fields = fields;
+      existing.parseError = parseError;
     } else {
-      this.entries.set(entry, { _id: entry, raw, frontmatter, body });
+      this.entries.set(entry, {
+        _id: entry,
+        raw,
+        frontmatter,
+        body,
+        fields,
+        parseError,
+      });
     }
 
     return { entry, command };
@@ -127,7 +140,7 @@ export default class FrontmatteringConcept {
   }): Promise<Array<{ value: string | number | boolean }>> {
     const doc = this.entries.get(entry);
     if (!doc) return [];
-    const fields = this.#parseFrontmatter(doc.frontmatter);
+    const fields = doc.fields;
     if (!(field in fields)) return [];
     const val = fields[field];
     if (
@@ -147,9 +160,9 @@ export default class FrontmatteringConcept {
   }): Promise<Array<{ fields: Record<string, string | number | boolean> }>> {
     const doc = this.entries.get(entry);
     if (!doc) return [];
-    const fields = this.#parseFrontmatter(doc.frontmatter);
+    const fmFields = doc.fields;
     const flat: Record<string, string | number | boolean> = {};
-    for (const [key, val] of Object.entries(fields)) {
+    for (const [key, val] of Object.entries(fmFields)) {
       if (
         typeof val === "string" ||
         typeof val === "number" ||
@@ -163,16 +176,47 @@ export default class FrontmatteringConcept {
     return [{ fields: flat }];
   }
 
-  /** Parse YAML frontmatter string into a flat key-value map. */
-  #parseFrontmatter(yaml: string | null): Record<string, JsonValue> {
-    if (!yaml) return {};
+  /** Parse YAML frontmatter string into a flat key-value map and optional error. */
+  #parseFrontmatter(yaml: string | null): {
+    fields: Record<string, JsonValue>;
+    parseError: string | null;
+  } {
+    if (!yaml) return { fields: {}, parseError: null };
     try {
       const parsed = parseYaml(yaml);
-      if (parsed === null || parsed === undefined) return {};
-      if (typeof parsed !== "object" || Array.isArray(parsed)) return {};
-      return parsed as Record<string, JsonValue>;
-    } catch {
-      return {};
+      if (parsed === null || parsed === undefined) {
+        return { fields: {}, parseError: null };
+      }
+      if (typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { fields: {}, parseError: null };
+      }
+      return {
+        fields: parsed as Record<string, JsonValue>,
+        parseError: null,
+      };
+    } catch (e) {
+      return {
+        fields: {},
+        parseError: e instanceof Error ? e.message : String(e),
+      };
     }
+  }
+
+  /**
+   * _getParseErrors (): ({ entry, error })
+   *
+   * **requires** true
+   *
+   * **effects** returns every entry that has a non-null parseError,
+   *   together with the error message
+   */
+  async _getParseErrors(): Promise<Array<{ entry: Entry; error: string }>> {
+    const results: Array<{ entry: Entry; error: string }> = [];
+    for (const [id, doc] of this.entries) {
+      if (doc.parseError != null) {
+        results.push({ entry: id, error: doc.parseError });
+      }
+    }
+    return results;
   }
 }

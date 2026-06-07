@@ -208,4 +208,14 @@ describe("Serving", () => {
     const [after] = await Serving._getServer({ server });
     expect(after).toBeUndefined();
   });
+
+  test("port conflict returns error", async () => {
+    const port = randomPort();
+    await Serving.start({ port, root: rootDir });
+    const result = await Serving.start({ port, root: rootDir });
+    expect("error" in result).toBe(true);
+    if ("error" in result) {
+      expect(result.error).toContain("Failed to start server");
+    }
+  });
 });

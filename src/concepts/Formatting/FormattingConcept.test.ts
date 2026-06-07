@@ -66,6 +66,18 @@ describe("Formatting", () => {
 
       expect(result).toEqual({ error: "unsupported format: xml" });
     });
+
+    test("returns error on rendering failure", async () => {
+      const result = await Formatting.render({
+        source: null as unknown as string,
+        format: "markdown",
+      });
+
+      expect("error" in result).toBe(true);
+      if ("error" in result) {
+        expect(result.error).toContain("Failed to render markdown");
+      }
+    });
   });
 
   describe("_getHtml", () => {

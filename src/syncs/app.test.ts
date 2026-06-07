@@ -544,3 +544,142 @@ describe("regression: isolation", () => {
     expect(layout).toHaveLength(0);
   });
 });
+
+describe("CLI: one-shot build via CommandLine.invoke", () => {
+  let cliTemp: string;
+  let cliSource: string;
+  let cliOutput: string;
+  let cliLayouts: string;
+
+  beforeEach(async () => {
+    cliTemp = await mkdtemp(join(tmpdir(), "cli-test-"));
+    cliSource = join(cliTemp, "pages");
+    cliOutput = join(cliTemp, "dist");
+    cliLayouts = join(cliTemp, "layouts");
+    await mkdir(cliSource, { recursive: true });
+    await mkdir(cliOutput, { recursive: true });
+    await mkdir(cliLayouts, { recursive: true });
+  });
+
+  afterAll(async () => {
+    if (cliTemp) {
+      await rm(cliTemp, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
+  test("valid build argv succeeds, writes files, and reports stats", async () => {
+    const app = await setupApp();
+    await writeFile(join(cliSource, "index.md"), "# Hello CLI");
+
+    await app.CommandLine.invoke({
+      argv: ["build", "--source", cliSource, "--output", cliOutput],
+    });
+
+    const content = await readFile(join(cliOutput, "index.html"), "utf-8");
+    expect(content).toContain("<h1>Hello CLI</h1>");
+
+    // Stats: 1 content page, 0 layouts, 0 public
+    const all = await app.Filing._getAll();
+    expect(all.filter((e) => e.source === "content")).toHaveLength(1);
+  });
+
+  test("invalid argv fails the invocation", async () => {
+    const app = await setupApp();
+
+    const result = await app.CommandLine.invoke({
+      argv: ["build", "--source", "src"],
+    });
+
+    const [doc] = await app.CommandLine._getInvocation({
+      invocation: result.invocation,
+    });
+    expect(doc.status).toBe("FAILED");
+    expect(doc.error).toContain("Missing required");
+  });
+
+  test("build with layouts produces composed output", async () => {
+    const app = await setupApp();
+    await app.Layouting.define({
+      name: "Base",
+      source: "<!DOCTYPE html><html><body><slot/></body></html>",
+    });
+    await app.Layouting.define({
+      name: "default",
+      source: "<Base><slot/></Base>",
+    });
+    await writeFile(
+      join(cliSource, "about.md"),
+      "---\ntitle: About\nlayout: default\n---\n\nAbout us.",
+    );
+
+    await app.CommandLine.invoke({
+      argv: ["build", "--source", cliSource, "--output", cliOutput],
+    });
+
+    const content = await readFile(
+      join(cliOutput, "about", "index.html"),
+      "utf-8",
+    );
+    expect(content).toContain("About us.");
+    expect(content).toContain("<!DOCTYPE html>");
+  });
+
+  test("build with public assets copies them", async () => {
+    const app = await setupApp();
+    const cliPublic = join(cliTemp, "public");
+    await mkdir(cliPublic, { recursive: true });
+    await writeFile(join(cliPublic, "robots.txt"), "User-agent: *");
+    await writeFile(join(cliSource, "index.md"), "# Home");
+
+    await app.CommandLine.invoke({
+      argv: [
+        "build",
+        "--source",
+        cliSource,
+        "--output",
+        cliOutput,
+        "--public",
+        cliPublic,
+      ],
+    });
+
+    const content = await readFile(join(cliOutput, "robots.txt"), "utf-8");
+    expect(content).toBe("User-agent: *");
+  });
+
+  test("build with missing source directory fails", async () => {
+    const app = await setupApp();
+
+    const result = await app.CommandLine.invoke({
+      argv: [
+        "build",
+        "--source",
+        "/nonexistent/dir/path",
+        "--output",
+        cliOutput,
+      ],
+    });
+
+    const [doc] = await app.CommandLine._getInvocation({
+      invocation: result.invocation,
+    });
+    expect(doc.status).toBe("FAILED");
+  });
+
+  test("CLI build completes with correct invocation lifecycle", async () => {
+    const app = await setupApp();
+    await writeFile(join(cliSource, "page.md"), "# Page");
+
+    const { invocation } = await app.CommandLine.invoke({
+      argv: ["build", "--source", cliSource, "--output", cliOutput],
+    });
+
+    const [doc] = await app.CommandLine._getInvocation({ invocation });
+    expect(doc.status).toBe("SUCCEEDED");
+
+    const rows = await app.CommandLine._getByOperation({
+      operation: undefined as never,
+    });
+    expect(rows).toHaveLength(0);
+  });
+});

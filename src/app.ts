@@ -21,8 +21,6 @@ export function createApp() {
 
   const app = createConcepts({ overrides });
 
-  // Wire the late-bound emitter so filesystem events go through the
-  // instrumented `Watching.poll` action (entering the engine journal).
   rawWatching.pollEmitter = app.Watching.poll;
 
   const syncs = createSyncs(app);

@@ -18,7 +18,21 @@ export function createErrorsSync({ Commanding, Filing }: C) {
     then: actions([Commanding.fail, { command, error }]),
   });
 
-  return { ScanErrorFailsBuild };
+  const LayoutScanErrorFailsBuild: Sync = ({ command, error }) => ({
+    when: actions([Filing.scan, { command, source: "layouts" }, { error }]),
+    then: actions([Commanding.fail, { command, error }]),
+  });
+
+  const PublicScanErrorFailsBuild: Sync = ({ command, error }) => ({
+    when: actions([Filing.scan, { command, source: "public" }, { error }]),
+    then: actions([Commanding.fail, { command, error }]),
+  });
+
+  return {
+    ScanErrorFailsBuild,
+    LayoutScanErrorFailsBuild,
+    PublicScanErrorFailsBuild,
+  };
 }
 
 const defaultSyncs = createErrorsSync({

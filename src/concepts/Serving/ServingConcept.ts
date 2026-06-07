@@ -51,69 +51,80 @@ export default class ServingConcept {
     const reloadScript =
       '\n<script>(function(){var s=new EventSource("/_livereload");s.onmessage=function(){location.reload()};})()</script>\n';
 
-    const bunServer = serve({
-      port,
-      async fetch(req): Promise<Response> {
-        const url = new URL(req.url);
-        const filePath = decodeURIComponent(url.pathname);
+    let bunServer: Server<undefined>;
 
-        // SSE endpoint for live-reload
-        if (filePath === "/_livereload") {
-          let clientId = "";
-          const body = new ReadableStream({
-            start(controller) {
-              clientId = freshID();
-              clients.set(clientId, (data: string) => {
-                controller.enqueue(`data: ${data}\n\n`);
-              });
-            },
-            cancel() {
-              clients.delete(clientId);
-            },
-          });
-          return new Response(body, {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-            },
-          });
-        }
+    try {
+      bunServer = serve({
+        port,
+        async fetch(req): Promise<Response> {
+          const url = new URL(req.url);
+          const filePath = decodeURIComponent(url.pathname);
 
-        // Serve static files
-        const fsPath =
-          filePath === "/" ? `${root}/index.html` : `${root}${filePath}`;
+          if (filePath === "/_livereload") {
+            let clientId = "";
+            const body = new ReadableStream({
+              start(controller) {
+                clientId = freshID();
+                clients.set(clientId, (data: string) => {
+                  controller.enqueue(`data: ${data}\n\n`);
+                });
+              },
+              cancel() {
+                clients.delete(clientId);
+              },
+            });
+            return new Response(body, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            });
+          }
 
-        try {
-          const file = Bun.file(fsPath);
-          if (!(await file.exists())) {
-            // SPA fallback: serve index.html for any unmatched route
-            const fallback = Bun.file(`${root}/index.html`);
-            if (await fallback.exists()) {
-              const html = await fallback.text();
+          const fsPath =
+            filePath === "/" ? `${root}/index.html` : `${root}${filePath}`;
+
+          try {
+            let file = Bun.file(fsPath);
+            if (!(await file.exists())) {
+              const indexPath = `${root}${filePath}/index.html`;
+              const indexFile = Bun.file(indexPath);
+              if (await indexFile.exists()) {
+                file = indexFile;
+              } else {
+                const fallback = Bun.file(`${root}/index.html`);
+                if (await fallback.exists()) {
+                  const html = await fallback.text();
+                  return new Response(html + reloadScript, {
+                    headers: { "Content-Type": "text/html; charset=utf-8" },
+                  });
+                }
+                return new Response("Not Found", { status: 404 });
+              }
+            }
+
+            const contentType = getContentType(fsPath);
+            if (contentType === "text/html") {
+              const html = await file.text();
               return new Response(html + reloadScript, {
                 headers: { "Content-Type": "text/html; charset=utf-8" },
               });
             }
-            return new Response("Not Found", { status: 404 });
-          }
-
-          const contentType = getContentType(fsPath);
-          if (contentType === "text/html") {
-            const html = await file.text();
-            return new Response(html + reloadScript, {
-              headers: { "Content-Type": "text/html; charset=utf-8" },
+            return new Response(file);
+          } catch (err) {
+            return new Response(`Server error: ${String(err)}`, {
+              status: 500,
             });
           }
-          return new Response(file);
-        } catch (err) {
-          return new Response(`Server error: ${String(err)}`, { status: 500 });
-        }
-      },
-      error() {
-        return new Response("Internal error", { status: 500 });
-      },
-    });
+        },
+        error() {
+          return new Response("Internal error", { status: 500 });
+        },
+      });
+    } catch (err) {
+      return { error: `Failed to start server: ${String(err)}` };
+    }
 
     this.servers.set(id, {
       _id: id,

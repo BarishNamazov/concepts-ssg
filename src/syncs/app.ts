@@ -15,17 +15,21 @@ import { createContentSync } from "./content.sync";
 import { createDevSyncs } from "./dev.sync";
 import { createDiscoverySync } from "./discovery.sync";
 import { createErrorsSync } from "./errors.sync";
+import { createPipelineErrorSyncs } from "./pipeline-errors.sync";
 import { createPublishingSync } from "./publishing.sync";
+import { createReportingSyncs } from "./reporting.sync";
 import { createTemplatesSync } from "./templates.sync";
 
 export function createSyncs(concepts: AppConcepts) {
   return {
+    ...createReportingSyncs(concepts),
     ...createBuildSync(concepts),
     ...createDiscoverySync(concepts),
     ...createContentSync(concepts),
     ...createTemplatesSync(concepts),
     ...createPublishingSync(concepts),
     ...createErrorsSync(concepts),
+    ...createPipelineErrorSyncs(concepts),
     ...createAssetsSync(concepts),
     ...createCliSyncs(concepts),
     ...createDevSyncs(concepts),

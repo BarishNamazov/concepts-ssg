@@ -40,7 +40,13 @@ export default class FormattingConcept {
       return { error: `unsupported format: ${format}`, command };
     }
 
-    const html = await marked.parse(source);
+    let html: string;
+    try {
+      html = await marked.parse(source);
+    } catch (err) {
+      return { error: `Failed to render markdown: ${String(err)}`, command };
+    }
+
     const id = entry ?? freshID();
 
     this.entries.set(id, {
