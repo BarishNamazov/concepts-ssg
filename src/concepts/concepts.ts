@@ -1,20 +1,22 @@
 import { SyncConcept } from "@engine";
-import { getDb } from "@utils/database.ts";
-import type { Db } from "mongodb";
-import AuthenticatingConcept from "./Authenticating/AuthenticatingConcept.ts";
-import ProfilingConcept from "./Profiling/ProfilingConcept.ts";
-import RequestingConcept from "./Requesting/RequestingConcept.ts";
-import RolingConcept from "./Roling/RolingConcept.ts";
-import SessioningConcept from "./Sessioning/SessioningConcept.ts";
+import CollectingConcept from "./Collecting/CollectingConcept.ts";
+import CommandingConcept from "./Commanding/CommandingConcept.ts";
+import FilingConcept from "./Filing/FilingConcept.ts";
+import FormattingConcept from "./Formatting/FormattingConcept.ts";
+import FrontmatteringConcept from "./Frontmattering/FrontmatteringConcept.ts";
+import LayoutingConcept from "./Layouting/LayoutingConcept.ts";
+import RoutingConcept from "./Routing/RoutingConcept.ts";
 
-type ConceptConstructor = new (db: Db, namespace?: string) => object;
+type ConceptConstructor = new (namespace?: string) => object;
 
 export const conceptClasses = {
-  Authenticating: AuthenticatingConcept,
-  Profiling: ProfilingConcept,
-  Requesting: RequestingConcept,
-  Roling: RolingConcept,
-  Sessioning: SessioningConcept,
+  Commanding: CommandingConcept,
+  Filing: FilingConcept,
+  Formatting: FormattingConcept,
+  Frontmattering: FrontmatteringConcept,
+  Collecting: CollectingConcept,
+  Layouting: LayoutingConcept,
+  Routing: RoutingConcept,
 } as const satisfies Record<string, ConceptConstructor>;
 
 export type ConceptName = keyof typeof conceptClasses;
@@ -30,7 +32,6 @@ export interface CreateConceptsOptions {
 }
 
 export function createConcepts(
-  db: Db,
   options: CreateConceptsOptions = {},
 ): { Engine: SyncConcept } & ConceptInstances {
   const Engine = options.engine ?? new SyncConcept();
@@ -38,9 +39,7 @@ export function createConcepts(
   const concepts = Object.fromEntries(
     Object.entries(conceptClasses).map(([name, Concept]) => [
       name,
-      Engine.instrumentConcept(
-        new Concept(db, namespaces[name as ConceptName]),
-      ),
+      Engine.instrumentConcept(new Concept(namespaces[name as ConceptName])),
     ]),
   ) as ConceptInstances;
 
@@ -49,12 +48,13 @@ export function createConcepts(
 
 export type AppConcepts = ReturnType<typeof createConcepts>;
 
-export const [db, client] = await getDb();
-const appConcepts = createConcepts(db);
+const appConcepts = createConcepts();
 
 export const Engine = appConcepts.Engine;
-export const Authenticating = appConcepts.Authenticating;
-export const Profiling = appConcepts.Profiling;
-export const Requesting = appConcepts.Requesting;
-export const Roling = appConcepts.Roling;
-export const Sessioning = appConcepts.Sessioning;
+export const Commanding = appConcepts.Commanding;
+export const Filing = appConcepts.Filing;
+export const Formatting = appConcepts.Formatting;
+export const Frontmattering = appConcepts.Frontmattering;
+export const Collecting = appConcepts.Collecting;
+export const Layouting = appConcepts.Layouting;
+export const Routing = appConcepts.Routing;

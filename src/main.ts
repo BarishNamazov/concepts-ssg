@@ -1,25 +1,61 @@
 /**
- * Entry point for an application built with concepts + synchronizations.
- * Requires the Requesting concept as a bootstrap concept.
+ * Static Site Generator CLI entry point — thin wrapper.
+ *
+ * Usage:
+ *   bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]
+ *
+ * All pipeline logic lives in syncs.  This file only parses CLI arguments,
+ * registers syncs, and fires the build command.
  */
 import * as concepts from "@concepts";
-
-const { Engine } = concepts;
-
-import { startRequestingServer } from "@concepts/Requesting/RequestingConcept.ts";
 import { Logging } from "@engine";
 import syncs from "@syncs";
 
-/**
- * Available logging levels:
- *   Logging.OFF
- *   Logging.TRACE - display a trace of the actions.
- *   Logging.VERBOSE - display full record of synchronization.
- */
-Engine.logging = Logging.TRACE;
+const { Commanding, Engine } = concepts;
 
-// Register synchronizations
+Engine.logging = Logging.TRACE;
 Engine.register(syncs);
 
-// Start a server to provide the Requesting concept with external/system actions.
-startRequestingServer(concepts);
+// ── Parse CLI arguments ────────────────────────────────────────────────────
+
+const args = Bun.argv.slice(2);
+const command = args[0];
+
+if (command !== "build") {
+  console.error(
+    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]",
+  );
+  process.exit(1);
+}
+
+function getArg(flag: string): string | undefined {
+  const i = args.indexOf(flag);
+  return i !== -1 ? args[i + 1] : undefined;
+}
+
+const source = getArg("--source");
+const output = getArg("--output");
+const layouts = getArg("--layouts") ?? "";
+
+if (!source || !output) {
+  console.error(
+    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]",
+  );
+  process.exit(1);
+}
+
+// ── Run the build ──────────────────────────────────────────────────────────
+
+console.log(`Building site from "${source}" to "${output}"...`);
+const result = await Commanding.issue({
+  name: "build",
+  args: { source, output, layouts },
+});
+
+const [cmd] = await Commanding._get({ command: result.command });
+if (!cmd || cmd.status === "FAILED") {
+  console.error(`Build failed: ${cmd?.error ?? "unknown error"}`);
+  process.exit(1);
+}
+
+console.log("Build complete.");
