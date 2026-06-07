@@ -1,12 +1,13 @@
 {
-  "name": "software-design-class",
+  "name": "concept-design-framework",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A concept-design application template with authentication, profiles, and role-based authorization.",
+  "description": "A static site generator built from independent concepts composed by declarative synchronizations.",
   "scripts": {
     "start": "bun run src/main.ts",
-    "example-client": "bun run example-client/server.ts",
+    "example:build": "bun run src/main.ts build --source example/pages --output example/dist --layouts example/layouts --public example/public",
+    "example:dev": "bun run src/main.ts build --source example/pages --output example/dist --layouts example/layouts --public example/public --dev",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
@@ -16,16 +17,12 @@
   },
   "dependencies": {
     "marked": "^18.0.4",
-    "mongodb": "^7.2.0",
-    "sanitize-html": "^2.17.4",
     "uuid": "^14.0.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
     "@types/bun": "^1.3.14",
-    "@types/sanitize-html": "^2.16.1",
-    "mongodb-memory-server": "^11.2.0",
     "typescript": "^5.9.0"
   }
 }
