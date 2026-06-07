@@ -1,15 +1,15 @@
 ---
-title: Blog
+title: Tutorials
 layout: Blog
 type: index
 ---
 
-## The Concept Design Blog
+## Tutorials
 
-Deep dives into software architecture, concept composition, and building with independent behavioral units.
+Step-by-step guides to building applications with Concept Design.
 
 <ul>
-{{#each posts}}
+{{#each tutorials}}
   <li style="margin: 1rem 0;">
     <a href="{{route}}" style="font-size: 1.1rem; font-weight: 600;">{{title}}</a>
     <br><span style="color: var(--muted); font-size: 0.85rem;">{{date}}</span>

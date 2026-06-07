@@ -1,18 +1,18 @@
 ---
-title: Blog
+title: Projects
 layout: Blog
 type: index
 ---
 
-## The Concept Design Blog
+## Projects
 
-Deep dives into software architecture, concept composition, and building with independent behavioral units.
+Real-world applications built with Concept Design.
 
 <ul>
-{{#each posts}}
+{{#each projects}}
   <li style="margin: 1rem 0;">
     <a href="{{route}}" style="font-size: 1.1rem; font-weight: 600;">{{title}}</a>
-    <br><span style="color: var(--muted); font-size: 0.85rem;">{{date}}</span>
+    <br><span class="badge badge-outline" style="font-size: 0.7rem;">{{status}}</span>
     <p style="margin: 0.3rem 0; color: var(--muted); font-size: 0.92rem;">{{description}}</p>
   </li>
 {{/each}}

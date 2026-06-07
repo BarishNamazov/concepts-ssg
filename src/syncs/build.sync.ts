@@ -2,7 +2,7 @@
  * Build command sync.
  *
  * Pipeline entry point: `Commanding.issue("build")` →
- * configure + scan layouts + scan content + complete build.
+ * configure + scan layouts + scan content + scan public + complete build.
  */
 
 import {
@@ -32,7 +32,14 @@ export function createBuildSync({
   Frontmattering,
   Routing,
 }: C) {
-  const BuildCommand: Sync = ({ command, args, source, output, layouts }) => ({
+  const BuildCommand: Sync = ({
+    command,
+    args,
+    source,
+    output,
+    layouts,
+    publicDir,
+  }) => ({
     when: actions([
       Commanding.issue,
       { name: "build", args },
@@ -46,6 +53,7 @@ export function createBuildSync({
           [source]: cmdArgs.source,
           [output]: cmdArgs.output,
           [layouts]: cmdArgs.layouts ?? "",
+          [publicDir]: cmdArgs.public ?? "",
         };
       }),
     then: actions(
@@ -71,6 +79,16 @@ export function createBuildSync({
           patterns: ["**/*.{md,html,htm}"],
           outputDirectory: output,
           source: "content",
+          command,
+        },
+      ],
+      [
+        Filing.scan,
+        {
+          directory: publicDir,
+          patterns: ["**/*"],
+          outputDirectory: output,
+          source: "public",
           command,
         },
       ],

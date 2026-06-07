@@ -1,0 +1,3 @@
+/* Additional per-page overrides — loaded via the public/ asset deployment.
+   The BaseLayout already includes inline styles; this file demonstrates
+   that static assets in public/ are copied as-is to the output. */

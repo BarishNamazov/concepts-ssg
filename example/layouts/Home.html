@@ -1,0 +1,15 @@
+<BaseLayout>
+  <Header />
+  <div style="max-width: var(--max-w); margin: 0 auto; padding: 0 1.5rem;">
+    <div class="hero">
+      <h1>{{title}}</h1>
+      <p>{{subtitle}}</p>
+      <div style="margin-top: 1.5rem; display: flex; gap: 0.8rem; justify-content: center; flex-wrap: wrap;">
+        <a href="/docs" style="background: var(--accent); color: white; padding: 0.6rem 1.3rem; border-radius: var(--radius); font-weight: 600; text-decoration: none;">Read the Docs</a>
+        <a href="/tutorials" style="background: var(--surface); color: var(--accent); border: 1.5px solid var(--accent); padding: 0.6rem 1.3rem; border-radius: var(--radius); font-weight: 600; text-decoration: none;">Start a Tutorial</a>
+      </div>
+    </div>
+    <slot/>
+  </div>
+  <Footer />
+</BaseLayout>

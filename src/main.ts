@@ -2,7 +2,7 @@
  * Static Site Generator CLI entry point — thin wrapper.
  *
  * Usage:
- *   bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]
+ *   bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>] [--public <dir>]
  *
  * All pipeline logic lives in syncs.  This file only parses CLI arguments,
  * registers syncs, and fires the build command.
@@ -23,7 +23,7 @@ const command = args[0];
 
 if (command !== "build") {
   console.error(
-    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]",
+    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>] [--public <dir>]",
   );
   process.exit(1);
 }
@@ -36,10 +36,11 @@ function getArg(flag: string): string | undefined {
 const source = getArg("--source");
 const output = getArg("--output");
 const layouts = getArg("--layouts") ?? "";
+const publicDir = getArg("--public") ?? "";
 
 if (!source || !output) {
   console.error(
-    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>]",
+    "Usage: bun run src/main.ts build --source <dir> --output <dir> [--layouts <dir>] [--public <dir>]",
   );
   process.exit(1);
 }
@@ -49,7 +50,7 @@ if (!source || !output) {
 console.log(`Building site from "${source}" to "${output}"...`);
 const result = await Commanding.issue({
   name: "build",
-  args: { source, output, layouts },
+  args: { source, output, layouts, public: publicDir },
 });
 
 const [cmd] = await Commanding._get({ command: result.command });

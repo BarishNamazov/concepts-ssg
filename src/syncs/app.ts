@@ -8,6 +8,7 @@
  */
 
 import type { AppConcepts } from "@concepts";
+import { createAssetsSync } from "./assets.sync";
 import { createBuildSync } from "./build.sync";
 import { createContentSync } from "./content.sync";
 import { createDiscoverySync } from "./discovery.sync";
@@ -23,6 +24,7 @@ export function createSyncs(concepts: AppConcepts) {
     ...createTemplatesSync(concepts),
     ...createPublishingSync(concepts),
     ...createErrorsSync(concepts),
+    ...createAssetsSync(concepts),
   };
 }
 
