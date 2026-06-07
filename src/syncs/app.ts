@@ -65,6 +65,7 @@ export function createSyncs({
         },
       ],
       [Building.complete, { build: command }],
+      [Filing.cleanOutput, {}],
       [Commanding.succeed, { command }],
     ),
   });
@@ -385,6 +386,7 @@ import {
   Formatting,
   Frontmattering,
   Layouting,
+  Publishing,
   Routing,
 } from "@concepts";
 
@@ -396,6 +398,7 @@ const defaultSyncs = createSyncs({
   Formatting,
   Frontmattering,
   Layouting,
+  Publishing,
   Routing,
 } as AppConcepts);
 export default defaultSyncs;

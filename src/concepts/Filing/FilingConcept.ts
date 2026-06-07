@@ -1,4 +1,11 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readdir,
+  readFile,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 import { freshID } from "@utils/database.ts";
 import type { Empty, ID } from "@utils/types.ts";
@@ -13,6 +20,8 @@ interface EntryDoc {
   root: string;
   content?: string;
   written: boolean;
+  /** The full output path this entry was last written to. */
+  outputPath?: string;
   source: string;
 }
 
@@ -165,8 +174,9 @@ export default class FilingConcept {
     } catch (err) {
       return { error: `Failed to write file: ${String(err)}`, command };
     }
-
     doc.written = true;
+    doc.outputPath = outputPath;
+
     return { entry, outputPath, command };
   }
 
@@ -192,6 +202,38 @@ export default class FilingConcept {
   async clear(): Promise<Empty> {
     this.entries.clear();
     return {};
+  }
+
+  /**
+   * cleanOutput (): ({ removed }) | ({ error })
+   *
+   * **requires** output directory is configured
+   *
+   * **effects** recursively walks the output directory and removes any file
+   *   whose relative path does not match an entry with `written: true`
+   */
+  async cleanOutput(): Promise<{ removed: number } | { error: string }> {
+    if (this.config.outputDirectory === "") {
+      return { error: "No output directory configured" };
+    }
+
+    const writtenPaths = new Set(
+      [...this.entries.values()]
+        .filter((e) => e.written && e.outputPath)
+        .map((e) => e.outputPath ?? ""),
+    );
+
+    let removed = 0;
+    try {
+      removed = await this.#removeStale(
+        this.config.outputDirectory,
+        writtenPaths,
+      );
+    } catch (err) {
+      return { error: `Failed to clean output: ${String(err)}` };
+    }
+
+    return { removed };
   }
 
   async _getEntry({ entry }: { entry: Entry }): Promise<
@@ -278,5 +320,39 @@ export default class FilingConcept {
   async _getConfig(): Promise<{ outputDirectory: string }[]> {
     if (this.config.outputDirectory === "") return [];
     return [{ outputDirectory: this.config.outputDirectory }];
+  }
+
+  /** Recursively remove files in `dir` that are not in `keep` set. */
+  async #removeStale(dir: string, keep: Set<string>): Promise<number> {
+    let removed = 0;
+    let entries: { name: string; isDir: boolean }[];
+    try {
+      const dirents = await readdir(dir, { withFileTypes: true });
+      entries = dirents.map((d) => ({
+        name: d.name,
+        isDir: d.isDirectory(),
+      }));
+    } catch {
+      return 0;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDir) {
+        removed += await this.#removeStale(fullPath, keep);
+        try {
+          const remaining = await readdir(fullPath);
+          if (remaining.length === 0) {
+            await rm(fullPath, { recursive: true });
+          }
+        } catch {
+          // ignore
+        }
+      } else if (!keep.has(fullPath)) {
+        await rm(fullPath);
+        removed++;
+      }
+    }
+    return removed;
   }
 }

@@ -6,6 +6,7 @@ import FilingConcept from "./Filing/FilingConcept.ts";
 import FormattingConcept from "./Formatting/FormattingConcept.ts";
 import FrontmatteringConcept from "./Frontmattering/FrontmatteringConcept.ts";
 import LayoutingConcept from "./Layouting/LayoutingConcept.ts";
+import PublishingConcept from "./Publishing/PublishingConcept.ts";
 import RoutingConcept from "./Routing/RoutingConcept.ts";
 
 type ConceptConstructor = new (namespace?: string) => object;
@@ -18,6 +19,7 @@ export const conceptClasses = {
   Frontmattering: FrontmatteringConcept,
   Collecting: CollectingConcept,
   Layouting: LayoutingConcept,
+  Publishing: PublishingConcept,
   Routing: RoutingConcept,
 } as const satisfies Record<string, ConceptConstructor>;
 
@@ -60,4 +62,5 @@ export const Formatting = appConcepts.Formatting;
 export const Frontmattering = appConcepts.Frontmattering;
 export const Collecting = appConcepts.Collecting;
 export const Layouting = appConcepts.Layouting;
+export const Publishing = appConcepts.Publishing;
 export const Routing = appConcepts.Routing;
