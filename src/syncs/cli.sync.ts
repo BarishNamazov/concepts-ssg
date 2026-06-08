@@ -128,6 +128,33 @@ export function createCliSyncs({
     then: actions([CommandLine.ready, { invocation }]),
   });
 
+  const WaitForReadyFail: Sync = ({
+    invocation,
+    command,
+    commandError,
+    mode,
+  }) => ({
+    when: actions([
+      Commanding.fail,
+      { command, error: commandError },
+      { command },
+    ]),
+    where: async (frames) => {
+      let enriched = await frames.query(
+        CommandLine._getByOperation,
+        { operation: command },
+        { invocation },
+      );
+      enriched = await enriched.query(
+        CommandLine._getInvocation,
+        { invocation },
+        { mode },
+      );
+      return enriched.filter((frame) => frame[mode] === "ready");
+    },
+    then: actions([CommandLine.fail, { invocation, error: commandError }]),
+  });
+
   return {
     CliInvalid,
     CliInvokeBuild,
@@ -137,5 +164,6 @@ export function createCliSyncs({
     WaitForCompleteSucceed,
     WaitForCompleteFail,
     WaitForReadySucceed,
+    WaitForReadyFail,
   };
 }

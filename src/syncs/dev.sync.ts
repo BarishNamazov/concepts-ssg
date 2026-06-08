@@ -32,7 +32,7 @@ export function createDevSyncs({
       }),
     then: actions(
       [Serving.start, { port, root: output }],
-      [Watching.start, { subject: source, context: command, debounceMs: 150 }],
+      [Watching.start, { subject: source, context: command }],
       [Commanding.issue, { name: "build", args }],
     ),
   });
@@ -162,6 +162,17 @@ export function createDevSyncs({
   });
 
   /**
+   * Runtime watch failure — fail the dev command referenced by the watcher
+   * context.
+   */
+  const WatchRuntimeErrorFailsDev: Sync = ({ devCmd, watchError }) => ({
+    when: actions([Watching.fail, {}, { context: devCmd, error: watchError }]),
+    where: (frames) =>
+      frames.filter((frame) => typeof frame[devCmd] === "string"),
+    then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
+  });
+
+  /**
    * Source change detected — issue a rebuild with the original dev command args.
    */
   const DevWatchRebuild: Sync = ({
@@ -259,6 +270,7 @@ export function createDevSyncs({
     DevStartFail,
     DevWatchFail,
     WatchStartErrorFailsDev,
+    WatchRuntimeErrorFailsDev,
     DevWatchRebuild,
     DevRebuildSucceed,
     DevRebuildFail,

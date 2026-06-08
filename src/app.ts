@@ -1,30 +1,39 @@
 /**
- * App factory — creates concepts, injects runtime drivers, registers all
- * syncs, and returns the instrumented concept instances ready for use by
- * the runtime boundary.
+ * App factory — creates concepts, registers all syncs, and assembles runtime
+ * adapters at the boundary.
  *
- * This is the single point of assembly.  `src/main.ts` only calls this
- * factory and fires one root action.
+ * This is the single point of assembly. `src/main.ts` only calls this factory
+ * and fires one root action.
  */
 
 import { createConcepts } from "@concepts";
 import { createSyncs } from "@syncs";
-import WatchingConcept from "./concepts/Watching/WatchingConcept.ts";
+import {
+  FilesystemWatchAdapter,
+  type WatchingRuntimeActions,
+} from "./runtime/filesystem_watch_adapter.ts";
 import { createFilesystemWatchDriver } from "./runtime/filesystem_watch_driver.ts";
+import { createRuntimeWatchSyncs } from "./syncs/runtime-watch.sync.ts";
 
 export function createApp() {
-  const driver = createFilesystemWatchDriver(150);
+  const app = createConcepts();
+  const driver = createFilesystemWatchDriver();
+  const Watching = {
+    poll: app.Watching.poll,
+    fail: app.Watching.fail,
+    _getWatcher: app.Watching._getWatcher,
+  } as unknown as WatchingRuntimeActions;
 
-  const rawWatching = new WatchingConcept(undefined, driver);
+  const WatchRuntime = app.Engine.instrumentConcept(
+    new FilesystemWatchAdapter(driver, Watching, 150),
+  );
 
-  const overrides = { Watching: rawWatching };
-
-  const app = createConcepts({ overrides });
-
-  rawWatching.pollEmitter = app.Watching.poll;
+  app.Engine.register(
+    createRuntimeWatchSyncs({ Watching: app.Watching, WatchRuntime }),
+  );
 
   const syncs = createSyncs(app);
   app.Engine.register(syncs);
 
-  return app;
+  return { ...app, WatchRuntime };
 }

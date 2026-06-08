@@ -125,7 +125,10 @@ export function createTemplatesSync({
       frames = frames.map((frame) => {
         const fieldsObj =
           (frame[fields] as Record<string, string | number | boolean>) ?? {};
-        return { ...frame, [layoutName]: String(fieldsObj.layout ?? "default") };
+        return {
+          ...frame,
+          [layoutName]: String(fieldsObj.layout ?? "default"),
+        };
       });
 
       // Discover which collection loops the template needs
@@ -186,10 +189,7 @@ export function createTemplatesSync({
           "";
         const resolvedLayout = String(fieldsObj.layout ?? "default");
 
-        const variables: Record<
-          string,
-          string | Record<string, string>[]
-        > = {};
+        const variables: Record<string, string | Record<string, string>[]> = {};
         for (const [key, value] of Object.entries(fieldsObj)) {
           variables[key] = String(value);
         }
@@ -203,7 +203,10 @@ export function createTemplatesSync({
         };
       });
     },
-    then: actions([Layouting.apply, { entry, layoutName, variables: vars, sequences: items }]),
+    then: actions([
+      Layouting.apply,
+      { entry, layoutName, variables: vars, sequences: items },
+    ]),
   });
 
   return {

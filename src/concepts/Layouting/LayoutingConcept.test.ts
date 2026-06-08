@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import type { ID } from "@utils/types.ts";
-import LayoutingConcept from "./LayoutingConcept.ts";
 import type { SequenceItem } from "./LayoutingConcept.ts";
+import LayoutingConcept from "./LayoutingConcept.ts";
 
 let Layouting: LayoutingConcept;
 
@@ -107,8 +107,7 @@ describe("Layouting", () => {
   test("_getSequenceRequests discovers collection name from layout", async () => {
     await Layouting.define({
       name: "Blog",
-      source:
-        "<body>{{#each posts}}<p>{{title}}</p>{{/each}}</body>",
+      source: "<body>{{#each posts}}<p>{{title}}</p>{{/each}}</body>",
     });
 
     const reqs = await Layouting._getSequenceRequests({
@@ -123,8 +122,7 @@ describe("Layouting", () => {
   test("_getSequenceRequests discovers sortBy", async () => {
     await Layouting.define({
       name: "Blog",
-      source:
-        "<body>{{#each posts sort=date}}<p>{{title}}</p>{{/each}}</body>",
+      source: "<body>{{#each posts sort=date}}<p>{{title}}</p>{{/each}}</body>",
     });
 
     const reqs = await Layouting._getSequenceRequests({
@@ -180,8 +178,7 @@ describe("Layouting", () => {
   test("apply sorts each loop by sortBy field descending", async () => {
     await Layouting.define({
       name: "Blog",
-      source:
-        "<body>{{#each posts sort=date}}<p>{{title}}</p>{{/each}}</body>",
+      source: "<body>{{#each posts sort=date}}<p>{{title}}</p>{{/each}}</body>",
     });
 
     const a = id("a");
@@ -239,8 +236,7 @@ describe("Layouting", () => {
   test("apply handles missing sequence data gracefully", async () => {
     await Layouting.define({
       name: "Blog",
-      source:
-        "<body>{{#each posts}}<p>{{title}}</p>{{/each}}</body>",
+      source: "<body>{{#each posts}}<p>{{title}}</p>{{/each}}</body>",
     });
 
     const result = await Layouting.apply({

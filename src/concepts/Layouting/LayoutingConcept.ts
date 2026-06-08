@@ -43,8 +43,7 @@ const VAR_RE = /\{\{(\w+)\}\}/g;
 const SLOT_RE = /<slot\b[^>]*>([\s\S]*?)<\/slot>|<slot\s*\/>/g;
 
 /** Matches a full `{{#each …}}…{{/each}}` block. */
-const EACH_BLOCK_RE =
-  /\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
+const EACH_BLOCK_RE = /\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
 
 /** Splits a directive string like `posts sort=date excludeCurrent=false`. */
 const TOKEN_RE = /[^\s"']+|"[^"]*"|'[^']*'/g;
@@ -214,7 +213,7 @@ export default class LayoutingConcept {
       typeof resolved === "string"
         ? // slot content into layout to get the effective template
           resolved.replace(SLOT_RE, (_full, fallback?: string) => {
-            return content !== undefined ? content : fallback ?? "";
+            return content !== undefined ? content : (fallback ?? "");
           })
         : content;
 
@@ -276,9 +275,7 @@ export default class LayoutingConcept {
    *   `sort=<field>`
    *   `excludeCurrent=true|false` (default true)
    */
-  #parseEachBlocks(
-    template: string,
-  ): EachBlock[] | { error: string } {
+  #parseEachBlocks(template: string): EachBlock[] | { error: string } {
     const blocks: EachBlock[] = [];
 
     for (const match of template.matchAll(EACH_BLOCK_RE)) {
@@ -399,10 +396,9 @@ export default class LayoutingConcept {
           filtered = filtered.filter((item) => item.entry !== currentEntry);
         }
         if (block.sortBy) {
+          const sortBy = block.sortBy;
           filtered = [...filtered].sort((a, b) =>
-            (b.fields[block.sortBy] ?? "").localeCompare(
-              a.fields[block.sortBy] ?? "",
-            ),
+            (b.fields[sortBy] ?? "").localeCompare(a.fields[sortBy] ?? ""),
           );
         }
 
