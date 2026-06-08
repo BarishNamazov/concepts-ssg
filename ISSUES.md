@@ -72,16 +72,6 @@ Impact: later builds in the same process can use removed layouts, stale rendered
 
 Suggested fix: add reset/clear actions for all build-scoped state and invoke them at build start, or make all relevant records keyed by build ID.
 
-### ISS-026: Dev watches only source content
-
-Evidence: `src/syncs/dev.sync.ts:34-35`
-
-Dev mode starts one watcher for `source`, but builds also depend on layouts and public assets.
-
-Impact: editing a layout or public asset does not trigger rebuild/reload.
-
-Suggested fix: watch all non-empty input roots and use the same dev command context for rebuilds.
-
 ### ISS-028: No partial rebuilds or plugin boundary
 
 Evidence: `src/syncs/dev.sync.ts:167-181`, `src/syncs/app.ts:23-36`

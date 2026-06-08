@@ -38,6 +38,36 @@ export function createDevSyncs({
   });
 
   /**
+   * Start a watcher for the layouts directory when one is configured.
+   */
+  const DevWatchLayouts: Sync = ({ command, layouts, args }) => ({
+    when: actions([Commanding.issue, { name: "dev", args }, { command }]),
+    where: (frames) =>
+      frames
+        .map((frame) => {
+          const cmdArgs = frame[args] as Record<string, string>;
+          return { ...frame, [layouts]: cmdArgs.layouts ?? "" };
+        })
+        .filter((frame) => frame[layouts] !== ""),
+    then: actions([Watching.start, { subject: layouts, context: command }]),
+  });
+
+  /**
+   * Start a watcher for the public assets directory when one is configured.
+   */
+  const DevWatchPublic: Sync = ({ command, publicDir, args }) => ({
+    when: actions([Commanding.issue, { name: "dev", args }, { command }]),
+    where: (frames) =>
+      frames
+        .map((frame) => {
+          const cmdArgs = frame[args] as Record<string, string>;
+          return { ...frame, [publicDir]: cmdArgs.public ?? "" };
+        })
+        .filter((frame) => frame[publicDir] !== ""),
+    then: actions([Watching.start, { subject: publicDir, context: command }]),
+  });
+
+  /**
    * Initial build succeeded — mark the dev command as ready.
    *
    * Matches: dev issue + server start (ok) + watcher start (ok) +
@@ -265,6 +295,8 @@ export function createDevSyncs({
 
   return {
     DevStart,
+    DevWatchLayouts,
+    DevWatchPublic,
     DevInitialBuildReady,
     DevInitialBuildFail,
     DevStartFail,
