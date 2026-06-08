@@ -31,9 +31,9 @@ Read this as a guided source tour. The code lives in <code>src/concepts</code>, 
 <p>Findings from the code review grouped by the layer they affect.</p>
 </a>
 
-<a href="/docs/ssg-architecture" class="card" style="text-decoration: none; color: inherit;">
-<h3>Architecture Reference</h3>
-<p>Every concept and the sync groups that compose them.</p>
+<a href="/docs/app-specification" class="card" style="text-decoration: none; color: inherit;">
+<h3>App Specification</h3>
+<p>Every concept and sync with the concept-design DSL.</p>
 </a>
 
 </div>

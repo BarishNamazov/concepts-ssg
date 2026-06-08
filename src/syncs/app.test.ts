@@ -3,8 +3,31 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConcepts } from "@concepts";
+import FormattingConcept from "@concepts/Formatting/FormattingConcept.ts";
 import { Logging } from "@engine";
 import { createSyncs } from "./app.ts";
+
+class BlockingFormattingConcept extends FormattingConcept {
+  block = false;
+  private releases: (() => void)[] = [];
+
+  override async render(input: Parameters<FormattingConcept["render"]>[0]) {
+    if (this.block) {
+      await new Promise<void>((resolve) => this.releases.push(resolve));
+    }
+    return await super.render(input);
+  }
+
+  get waiting(): number {
+    return this.releases.length;
+  }
+
+  releaseOne(): void {
+    const release = this.releases.shift();
+    if (release === undefined) throw new Error("No blocked render to release");
+    release();
+  }
+}
 
 async function setupApp() {
   const app = createConcepts();
@@ -12,6 +35,25 @@ async function setupApp() {
   const syncs = createSyncs(app);
   app.Engine.register(syncs);
   return app;
+}
+
+async function waitFor(
+  predicate: () => boolean,
+  timeoutMs = 1000,
+): Promise<void> {
+  const startedAt = Date.now();
+  while (!predicate()) {
+    if (Date.now() - startedAt > timeoutMs) {
+      throw new Error("Timed out waiting for condition");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
+function buildIssueCount(app: Awaited<ReturnType<typeof setupApp>>): number {
+  return [...app.Engine.Action.actions.values()].filter(
+    (record) => record.input.name === "build",
+  ).length;
 }
 
 let tempDir: string;
@@ -600,6 +642,64 @@ describe("regression: isolation", () => {
   });
 });
 
+describe("regression: dev rebuild coalescing", () => {
+  test("queues one follow-up rebuild while a rebuild is active", async () => {
+    const Formatting = new BlockingFormattingConcept();
+    const app = createConcepts({
+      overrides: { Formatting: Formatting as never },
+    });
+    app.Engine.logging = Logging.OFF;
+    app.Engine.register(createSyncs(app));
+
+    await writeFile(join(sourceDir, "index.md"), "# First");
+    const { command: devSession } = await app.Commanding.issue({
+      name: "dev-session",
+      args: { source: sourceDir, output: outputDir },
+    });
+
+    Formatting.block = true;
+    const activeRequest = app.Coalescing.request({
+      context: devSession,
+      kind: "change",
+    });
+
+    await waitFor(() => Formatting.waiting === 1);
+    expect(buildIssueCount(app)).toBe(1);
+
+    const queuedA = await app.Coalescing.request({
+      context: devSession,
+      kind: "change",
+    });
+    const queuedB = await app.Coalescing.request({
+      context: devSession,
+      kind: "change",
+    });
+
+    expect(queuedA).toEqual({
+      context: devSession,
+      kind: "change",
+      queued: true,
+    });
+    expect(queuedB).toEqual({
+      context: devSession,
+      kind: "change",
+      queued: true,
+    });
+    expect(buildIssueCount(app)).toBe(1);
+
+    Formatting.releaseOne();
+    await waitFor(() => buildIssueCount(app) === 2 && Formatting.waiting === 1);
+
+    Formatting.releaseOne();
+    await activeRequest;
+
+    expect(buildIssueCount(app)).toBe(2);
+    const [state] = await app.Coalescing._get({ context: devSession });
+    expect(state.active).toBe(false);
+    expect(state.pending).toBe(false);
+  });
+});
+
 describe("CLI: one-shot build via CommandLine.invoke", () => {
   let cliTemp: string;
   let cliSource: string;
@@ -682,8 +782,11 @@ describe("CLI: one-shot build via CommandLine.invoke", () => {
   test("build with public assets copies them", async () => {
     const app = await setupApp();
     const cliPublic = join(cliTemp, "public");
+    const binaryBytes = Uint8Array.from([0xff, 0xd8, 0x00, 0xc3, 0x28, 0xd9]);
     await mkdir(cliPublic, { recursive: true });
+    await mkdir(join(cliPublic, "assets"), { recursive: true });
     await writeFile(join(cliPublic, "robots.txt"), "User-agent: *");
+    await writeFile(join(cliPublic, "assets", "logo.bin"), binaryBytes);
     await writeFile(join(cliSource, "index.md"), "# Home");
 
     await app.CommandLine.invoke({
@@ -700,6 +803,15 @@ describe("CLI: one-shot build via CommandLine.invoke", () => {
 
     const content = await readFile(join(cliOutput, "robots.txt"), "utf-8");
     expect(content).toBe("User-agent: *");
+
+    const copiedBinary = await readFile(join(cliOutput, "assets", "logo.bin"));
+    expect([...copiedBinary]).toEqual([...binaryBytes]);
+
+    const publicEntries = await app.Filing._getBySource({ source: "public" });
+    expect(publicEntries).toHaveLength(2);
+    for (const { entry } of publicEntries) {
+      expect(await app.Filing._getContent({ entry })).toEqual([]);
+    }
   });
 
   test("build with missing source directory fails", async () => {

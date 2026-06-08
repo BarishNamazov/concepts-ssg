@@ -25,6 +25,11 @@ export default class RoutingConcept {
     void namespace;
   }
 
+  async clear(): Promise<Empty> {
+    this.entries.clear();
+    return {};
+  }
+
   async configure({
     stripPrefix,
     indexName,

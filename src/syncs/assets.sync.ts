@@ -1,21 +1,22 @@
 /**
  * Public asset deployment sync — copies files from a public/ directory
- * to the output as-is, preserving relative paths.  No new concept needed;
- * Filing already handles scan, read, and write.
+ * to the output as opaque bytes, preserving relative paths.
  */
 
 import type { AppConcepts } from "@concepts";
 import { actions, type Sync } from "@engine";
 
 export function createAssetsSync({ Filing }: Pick<AppConcepts, "Filing">) {
-  const PublicReadTriggersWrite: Sync = ({ entry, src, content }) => ({
-    when: actions([Filing.read, {}, { entry, content }]),
-    where: async (frames) => {
-      frames = await frames.query(Filing._getEntry, { entry }, { source: src });
-      return frames.filter((f) => f[src] === "public");
-    },
-    then: actions([Filing.write, { entry }]),
+  const PublicScanTriggersCopy: Sync = ({ entry, entries, source }) => ({
+    when: actions([Filing.scan, {}, { entries, source }]),
+    where: (frames) =>
+      frames.flatMap((frame) => {
+        if (frame[source] !== "public") return [];
+        const entryIds = frame[entries] as string[];
+        return entryIds.map((id) => ({ ...frame, [entry]: id }));
+      }),
+    then: actions([Filing.copy, { entry }]),
   });
 
-  return { PublicReadTriggersWrite };
+  return { PublicScanTriggersCopy };
 }

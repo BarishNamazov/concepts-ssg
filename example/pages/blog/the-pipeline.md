@@ -58,11 +58,12 @@ Each scan returns an array of entry IDs. The `Filing` concept stores each discov
 
 ## Stage 4: Per-File Cascades
 
-For each scan result, `discovery.sync.ts` fans out the entry array into one frame per entry, then fires `Filing.read`:
+For content and layout scan results, `discovery.sync.ts` fans out the entry array into one frame per entry, then fires `Filing.read`:
 
 ```ts
 where: (frames) =>
   frames.flatMap((frame) => {
+    if (frame[source] === "public") return [];
     const entryIds = frame[entries] as string[];
     return entryIds.map((id) => ({ ...frame, [entry]: id }));
   }),
@@ -87,6 +88,8 @@ Layout files follow a shorter path through `templates.sync.ts`:
 Filing.read (layout file)
   → Layouting.define         // register the HTML template by name
 ```
+
+Public files do not enter the text cascade. `assets.sync.ts` fans out the public scan and fires `Filing.copy`, preserving bytes for images, fonts, PDFs, and other assets.
 
 ## Stage 5: Layout Application
 
@@ -115,6 +118,8 @@ then: actions([Filing.write, {
 ```
 
 A page with route `/blog/post` writes to `example/dist/blog/post/index.html`.
+
+Public assets have already been copied to matching relative paths by `Filing.copy`.
 
 ## Stage 7: Index Regeneration
 

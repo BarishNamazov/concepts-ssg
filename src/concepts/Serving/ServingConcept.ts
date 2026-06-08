@@ -86,23 +86,34 @@ export default class ServingConcept {
             });
           }
 
-          const fsPath =
+          const initialPath =
             filePath === "/"
               ? safeJoin(resolvedRoot, "index.html")
               : safeJoin(resolvedRoot, filePath.slice(1));
 
-          if (typeof fsPath !== "string") return new Response("Forbidden", { status: 403 });
+          if (typeof initialPath !== "string")
+            return new Response("Forbidden", { status: 403 });
 
           try {
-            let file = Bun.file(fsPath);
+            let servedPath = initialPath;
+            let file = Bun.file(servedPath);
             if (!(await file.exists())) {
-              const indexPath = safeJoin(resolvedRoot, `${filePath.slice(1)}/index.html`);
-              if (typeof indexPath !== "string") return new Response("Forbidden", { status: 403 });
+              const indexPath = safeJoin(
+                resolvedRoot,
+                `${filePath.slice(1)}/index.html`,
+              );
+              if (typeof indexPath !== "string")
+                return new Response("Forbidden", { status: 403 });
               const indexFile = Bun.file(indexPath);
               if (await indexFile.exists()) {
+                servedPath = indexPath;
                 file = indexFile;
               } else {
-                const fallback = Bun.file(safeJoin(resolvedRoot, "index.html") as string);
+                const fallbackPath = safeJoin(
+                  resolvedRoot,
+                  "index.html",
+                ) as string;
+                const fallback = Bun.file(fallbackPath);
                 if (await fallback.exists()) {
                   const html = await fallback.text();
                   return new Response(html + reloadScript, {
@@ -113,7 +124,7 @@ export default class ServingConcept {
               }
             }
 
-            const contentType = getContentType(fsPath);
+            const contentType = getContentType(servedPath);
             if (contentType === "text/html") {
               const html = await file.text();
               return new Response(html + reloadScript, {

@@ -1,5 +1,5 @@
-import type { Empty, ID } from "@utils/types.ts";
 import { freshID } from "@utils/id.ts";
+import type { Empty, ID } from "@utils/types.ts";
 
 type Layout = ID;
 type Entry = ID;
@@ -188,11 +188,7 @@ export default class LayoutingConcept {
     return [{ layout: doc._id, name: doc.name, source: doc.source }];
   }
 
-  async _getUses({
-    layout,
-  }: {
-    layout: Layout;
-  }): Promise<{ name: string }[]> {
+  async _getUses({ layout }: { layout: Layout }): Promise<{ name: string }[]> {
     const doc = this.layoutDeps.get(layout);
     if (!doc) return [];
     return doc.uses.map((name) => ({ name }));

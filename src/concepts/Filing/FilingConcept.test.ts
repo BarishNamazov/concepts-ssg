@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import FilingConcept from "./FilingConcept.ts";
@@ -126,7 +126,6 @@ describe("Filing", () => {
     expect(writeResult).toHaveProperty("outputPath");
 
     const outputFile = join(outputDir, "page.md");
-    const { readFile } = await import("node:fs/promises");
     const writtenContent = await readFile(outputFile, "utf-8");
     expect(writtenContent).toBe(content);
 
@@ -157,7 +156,6 @@ describe("Filing", () => {
       outputPath: expectedPath,
     });
 
-    const { readFile } = await import("node:fs/promises");
     const writtenContent = await readFile(expectedPath, "utf-8");
     expect(writtenContent).toBe(content);
   });
@@ -202,6 +200,83 @@ describe("Filing", () => {
     if ("error" in result) {
       expect(result.error).toContain("Path traversal");
     }
+  });
+
+  test("copy preserves binary bytes without reading text content", async () => {
+    const bytes = Uint8Array.from([0xff, 0x00, 0xc3, 0x28, 0x89, 0x50, 0x4e]);
+    await writeFile(join(sourceDir, "image.bin"), bytes);
+
+    await Filing.scan({
+      directory: sourceDir,
+      patterns: ["**/*.bin"],
+      outputDirectory: outputDir,
+      source: "public",
+    });
+
+    const all = await Filing._getAll();
+    const copyResult = await Filing.copy({ entry: all[0].entry });
+
+    expect(copyResult).toEqual({
+      entry: all[0].entry,
+      outputPath: join(outputDir, "image.bin"),
+    });
+
+    const copied = await readFile(join(outputDir, "image.bin"));
+    expect([...copied]).toEqual([...bytes]);
+
+    const stored = await Filing._getContent({ entry: all[0].entry });
+    expect(stored).toEqual([]);
+
+    const [entryDoc] = await Filing._getEntry({ entry: all[0].entry });
+    expect(entryDoc.written).toBe(true);
+    expect(entryDoc.outputPath).toBe(join(outputDir, "image.bin"));
+  });
+
+  test("copy preserves nested directory structure", async () => {
+    const bytes = Uint8Array.from([1, 2, 3, 4]);
+    await writeFile(join(sourceDir, "sub", "asset.dat"), bytes);
+
+    await Filing.scan({
+      directory: sourceDir,
+      patterns: ["**/*.dat"],
+      outputDirectory: outputDir,
+      source: "public",
+    });
+
+    const all = await Filing._getAll();
+    const result = await Filing.copy({ entry: all[0].entry });
+
+    const expectedPath = join(outputDir, "sub", "asset.dat");
+    expect(result).toEqual({ entry: all[0].entry, outputPath: expectedPath });
+    expect([...(await readFile(expectedPath))]).toEqual([...bytes]);
+  });
+
+  test("copy rejects path traversal via outputRelativePath", async () => {
+    await writeFile(join(sourceDir, "asset.bin"), Uint8Array.from([1]));
+
+    await Filing.scan({
+      directory: sourceDir,
+      patterns: ["**/*.bin"],
+      outputDirectory: outputDir,
+      source: "public",
+    });
+
+    const all = await Filing._getAll();
+    const result = await Filing.copy({
+      entry: all[0].entry,
+      outputRelativePath: "../outside.bin",
+    });
+
+    expect("error" in result).toBe(true);
+    if ("error" in result) {
+      expect(result.error).toContain("Path traversal");
+    }
+  });
+
+  test("copy returns error for nonexistent entry", async () => {
+    const result = await Filing.copy({ entry: "nonexistent" as never });
+
+    expect(result).toEqual({ error: "Entry not found: nonexistent" });
   });
 
   test("clear removes all entries", async () => {
@@ -350,8 +425,6 @@ describe("Filing", () => {
     }
 
     // Then the output files exist and match the source content
-    const { readFile } = await import("node:fs/promises");
-
     const indexContent = await readFile(join(outputDir, "index.md"), "utf-8");
     expect(indexContent).toBe("# Welcome");
 

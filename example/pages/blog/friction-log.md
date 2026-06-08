@@ -30,13 +30,13 @@ The fix is to store consumed match signatures: `sync name + ordered action IDs`,
 
 See [Engine Core Issues](/issues/engine-core).
 
-## Friction 3: The Filesystem Has No Guardrails
+## Friction 3: Runtime Feedback Needs Explicit Boundaries
 
-`Filing` and `Serving` both join path components directly. A content file with `../../etc/passwd` in its route, or a CLI invocation with `--output .`, can escape the intended root directory.
+The dev loop has improved: public assets copy bytes safely, clean URLs receive the live-reload script, and rapid file changes are serialized through `Coalescing` instead of starting overlapping builds.
 
-This is a demo with trusted inputs, so the risk is theoretical. But the fix is not concept-specific — it requires path resolution, escape detection, and output root validation in every concept that touches the filesystem.
+The remaining runtime sharp edge is startup and failure cleanup. Starting the server, watchers, and initial build still spans several effects, so partial startup failures need more explicit cleanup rules.
 
-See [Filesystem Issues](/issues/filesystem-io).
+See [Sync Layer Issues](/issues/sync-layer).
 
 ## What Still Works
 
@@ -54,7 +54,7 @@ The friction log is a repair list, not a rejection.
 If you are hardening the project, start here:
 
  1. **Gate build success behind stage success.** Split build stages into success-only syncs.
- 2. **Fix path safety.** Resolve and validate all filesystem paths.
+ 2. **Harden dev startup cleanup.** Chain startup stages and stop resources on partial failure.
  3. **Fix engine evidence tracking.** Use match signatures instead of per-sync-name consumption.
 
 The full issue map starts at [Issue Review](/issues).

@@ -38,14 +38,14 @@ Thirteen sync files compose the application. The core pipeline uses seven; the r
 |---|---|
 | `cli.sync.ts` | CLI invocation → command issue → command outcome → terminal result |
 | `build.sync.ts` | Build command → reset state → configure routing → scan all inputs → complete → clean → succeed |
-| `discovery.sync.ts` | Scan result arrays → fan out → one read action per entry |
+| `discovery.sync.ts` | Non-public scan result arrays → fan out → one read action per entry |
 | `content.sync.ts` | Read → parse frontmatter → render markdown → derive route → collect metadata |
 | `templates.sync.ts` | Layout files → layout definitions; render + route → layout application; build complete → index regeneration |
 | `output.sync.ts` | Layout output → file write |
-| `dev.sync.ts` | Dev command → start server → start watchers → initial build → watch events → rebuild → reload |
-| `assets.sync.ts` | Public asset scan → read → write (copy) |
+| `dev.sync.ts` | Dev command → server/watchers → coalesced builds → reload |
+| `assets.sync.ts` | Public asset scan → byte-safe copy |
 | `errors.sync.ts` | Scan errors → command failure |
-| `pipeline-errors.sync.ts` | Read/write/render/layout/route errors → command failure |
+| `pipeline-errors.sync.ts` | Read/write/copy/render/layout/route errors → command failure |
 | `reporting.sync.ts` | Build complete → summary statistics |
 | `runtime-cli.sync.ts` | CommandLine state transitions → console/process effects |
 | `runtime-watch.sync.ts` | Watching state transitions → filesystem driver subscription |
@@ -69,7 +69,7 @@ CommandLine.invoke         // user runs the CLI
   → Routing.derive         // content.sync.ts matches parses
   → Collecting.collect     // content.sync.ts matches parses
   → Filing.scan(public)    // build.sync.ts
-  → Filing.read            // discovery.sync.ts
+  → Filing.copy            // assets.sync.ts copies opaque bytes
   → Building.complete      // build.sync.ts — barrier: index regen waits
   → Layouting.apply        // templates.sync.ts joins render + route
   → Filing.write           // output.sync.ts matches layout applications
@@ -83,6 +83,12 @@ CommandLine.invoke         // user runs the CLI
 Every root action starts a causal flow. Actions fired by sync `then` clauses inherit the flow of the action they reacted to. Sync matching is scoped to a single flow.
 
 This prevents one build's `Formatting.render` from accidentally joining another build's `Routing.derive`. The journal is the persistent log, but syncs only see the current flow's entries.
+
+## Dev Rebuild Coalescing
+
+Dev mode does not issue a build directly from every watch event. A watch change fires `Coalescing.request({ context: devCommand, kind: "change" })`. If no dev build is active, that request starts a build. If a build is already active, repeated changes are collapsed into one pending request. When the active build succeeds or fails, `Coalescing.finish` either starts the queued follow-up build or returns the dev session to idle.
+
+This keeps the dev server responsive without allowing overlapping in-process builds to mutate shared concept state at the same time.
 
 ## Queries in `where`
 

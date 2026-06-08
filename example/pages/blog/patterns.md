@@ -14,15 +14,16 @@ The sync layer uses a small set of patterns repeatedly. This post documents each
 
 A concept returns an array of IDs. The sync turns one frame into many, one per ID.
 
-**The problem:** `Filing.scan` returns `{ entries: ["entry-1", "entry-2", ..., "entry-N"] }`. `Filing.read` takes a single entry ID. The engine does not automatically iterate arrays.
+**The problem:** `Filing.scan` returns `{ entries: ["entry-1", "entry-2", ..., "entry-N"] }`. `Filing.read` and `Filing.copy` each take a single entry ID. The engine does not automatically iterate arrays.
 
 **The sync** (`discovery.sync.ts`):
 
 ```ts
-export const ScanTriggersRead: Sync = ({ entry, entries }) => ({
-  when: actions([Filing.scan, {}, { entries }]),
+export const ScanTriggersRead: Sync = ({ entry, entries, source }) => ({
+  when: actions([Filing.scan, {}, { entries, source }]),
   where: (frames) =>
     frames.flatMap((frame) => {
+      if (frame[source] === "public") return [];
       const entryIds = frame[entries] as string[];
       return entryIds.map((id) => ({ ...frame, [entry]: id }));
     }),
@@ -30,7 +31,7 @@ export const ScanTriggersRead: Sync = ({ entry, entries }) => ({
 });
 ```
 
-If the scan found 20 files, `then` fires `Filing.read` 20 times — once per entry.
+If a content or layout scan found 20 files, `then` fires `Filing.read` 20 times — once per entry. Public asset scans use the same fan-out shape in `assets.sync.ts`, but fire `Filing.copy` instead.
 
 **Where it bends:** The engine currently marks a journal record as consumed after any match, so fan-out syncs that reference the original scan result in `where` queries can fail if another sync already consumed it.
 

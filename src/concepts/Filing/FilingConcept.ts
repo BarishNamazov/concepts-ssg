@@ -1,3 +1,4 @@
+import { createReadStream, createWriteStream } from "node:fs";
 import {
   mkdir,
   readdir,
@@ -7,9 +8,10 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+import { pipeline } from "node:stream/promises";
 import { freshID } from "@utils/id.ts";
-import type { Empty, ID } from "@utils/types.ts";
 import { safeJoin } from "@utils/path_guard.ts";
+import type { Empty, ID } from "@utils/types.ts";
 import { Glob } from "bun";
 
 type Entry = ID;
@@ -126,32 +128,61 @@ export default class FilingConcept {
     if (doc.content === undefined) {
       return { error: `Entry has no content — call read first: ${entry}` };
     }
-    if (doc.outputDirectory === "") {
-      return { error: "No Config found — call scan first" };
-    }
 
-    const outputPath = safeJoin(
-      doc.outputDirectory,
-      outputRelativePath ?? doc.path,
-    );
-    if (typeof outputPath !== "string") return outputPath;
-    const outputDir = path.dirname(outputPath);
+    const prepared = await this.#prepareOutputPath(doc, outputRelativePath);
+    if ("error" in prepared) return prepared;
 
     try {
-      await mkdir(outputDir, { recursive: true });
-    } catch (err) {
-      return { error: `Failed to create output directory: ${String(err)}` };
-    }
-
-    try {
-      await writeFile(outputPath, doc.content, "utf-8");
+      await writeFile(prepared.outputPath, doc.content, "utf-8");
     } catch (err) {
       return { error: `Failed to write file: ${String(err)}` };
     }
     doc.written = true;
-    doc.outputPath = outputPath;
+    doc.outputPath = prepared.outputPath;
 
-    return { entry, outputPath };
+    return { entry, outputPath: prepared.outputPath };
+  }
+
+  /**
+   * copy ({ entry, outputRelativePath }): ({ entry, outputPath }) | ({ error })
+   *
+   * **requires** `entry` exists and has an output directory configured
+   *
+   * **effects** streams the entry's source bytes to its output path without
+   *   decoding; marks the entry as written
+   */
+  async copy({
+    entry,
+    outputRelativePath,
+  }: {
+    entry: Entry;
+    outputRelativePath?: string;
+  }): Promise<{ entry: Entry; outputPath: string } | { error: string }> {
+    const doc = this.entries.get(entry);
+    if (doc === undefined) {
+      return { error: `Entry not found: ${entry}` };
+    }
+
+    const prepared = await this.#prepareOutputPath(doc, outputRelativePath);
+    if ("error" in prepared) return prepared;
+
+    const sourcePath = path.join(doc.root, doc.path);
+    try {
+      await stat(sourcePath);
+      if (path.resolve(sourcePath) !== path.resolve(prepared.outputPath)) {
+        await pipeline(
+          createReadStream(sourcePath),
+          createWriteStream(prepared.outputPath),
+        );
+      }
+    } catch (err) {
+      return { error: `Failed to copy file: ${String(err)}` };
+    }
+
+    doc.written = true;
+    doc.outputPath = prepared.outputPath;
+
+    return { entry, outputPath: prepared.outputPath };
   }
 
   async setContent({
@@ -305,6 +336,29 @@ export default class FilingConcept {
     return [...outputDirectories].map((outputDirectory) => ({
       outputDirectory,
     }));
+  }
+
+  async #prepareOutputPath(
+    doc: EntryDoc,
+    outputRelativePath?: string,
+  ): Promise<{ outputPath: string } | { error: string }> {
+    if (doc.outputDirectory === "") {
+      return { error: "No Config found — call scan first" };
+    }
+
+    const outputPath = safeJoin(
+      doc.outputDirectory,
+      outputRelativePath ?? doc.path,
+    );
+    if (typeof outputPath !== "string") return outputPath;
+
+    try {
+      await mkdir(path.dirname(outputPath), { recursive: true });
+    } catch (err) {
+      return { error: `Failed to create output directory: ${String(err)}` };
+    }
+
+    return { outputPath };
   }
 
   /** Recursively remove files in `dir` that are not in `keep` set. */

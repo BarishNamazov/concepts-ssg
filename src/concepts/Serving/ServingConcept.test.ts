@@ -207,6 +207,22 @@ describe("Serving", () => {
     expect(body).toContain("_livereload");
   });
 
+  test("serves clean directory URLs with live-reload injection", async () => {
+    const port = randomPort();
+    await mkdir(join(rootDir, "blog"), { recursive: true });
+    await writeFile(join(rootDir, "blog", "index.html"), "<h1>Blog</h1>");
+    await Serving.start({ port, root: rootDir });
+
+    for (const route of ["/blog", "/blog/", "/blog/index.html"]) {
+      const res = await fetch(`http://localhost:${port}${route}`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("text/html");
+      const body = await res.text();
+      expect(body).toContain("<h1>Blog</h1>");
+      expect(body).toContain("_livereload");
+    }
+  });
+
   test("rejects path traversal in URL path", async () => {
     const port = randomPort();
     await Serving.start({ port, root: rootDir });

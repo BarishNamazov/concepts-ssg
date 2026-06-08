@@ -10,7 +10,7 @@ This repository is not just a static site generator. It is a worked example of *
 
 The example site documents the project from the inside. It explains what the concepts do, how the sync engine moves work through the pipeline, and where the current implementation is still fragile.
 
-<div class="grid-3" style="margin-top: 1.5rem;">
+<div class="grid-2" style="margin-top: 1.5rem;">
 
 <div class="card">
 <h3>Concepts Own Behavior</h3>
@@ -20,11 +20,6 @@ The example site documents the project from the inside. It explains what the con
 <div class="card">
 <h3>Syncs Compose Work</h3>
 <p>The build is declared as <code>when</code>, <code>where</code>, and <code>then</code> rules over journaled actions instead of imperative orchestration code.</p>
-</div>
-
-<div class="card">
-<h3>Issues Are First-Class</h3>
-<p>The review log is published as part of the example site, grouped by the layer each problem belongs to so the architecture can be improved openly.</p>
 </div>
 
 </div>
@@ -55,8 +50,8 @@ The generator turns markdown, HTML layouts, and public assets into a static site
 
 <div class="card">
 <h3>Developer Loop</h3>
-<p class="meta">Serving, Watching</p>
-<p>Dev mode serves the output directory, watches source files, rebuilds on change, and reloads browsers.</p>
+<p class="meta">Serving, Watching, Coalescing</p>
+<p>Dev mode serves the output directory, watches source files, serializes rebuilds, and reloads browsers.</p>
 </div>
 
 </div>
@@ -71,19 +66,13 @@ The generator turns markdown, HTML layouts, and public assets into a static site
 <p>Read the repo as a running system: concepts, syncs, file flow, dev mode, and tradeoffs.</p>
 </a>
 
-<a href="/issues" class="card" style="text-decoration: none; color: inherit;">
-<h3>Issue Review</h3>
-<p class="meta">Grouped by layer</p>
-<p>Browse the review findings by category: concept design, sync layer, engine, filesystem, and parsing.</p>
+<a href="/docs/app-specification" class="card" style="text-decoration: none; color: inherit;">
+<h3>App Specification</h3>
+<p class="meta">Full concept & sync DSL</p>
+<p>The complete specification of every concept and sync in the SSG, using the concept-design DSL with instantiation details.</p>
 </a>
 
-<a href="/docs/ssg-architecture" class="card" style="text-decoration: none; color: inherit;">
-<h3>Architecture Notes</h3>
-<p class="meta">Concept-by-concept reference</p>
-<p>See how the generator is divided into reusable units and what each one owns.</p>
-</a>
-
-<a href="/blog/friction-log" class="card" style="text-decoration: none; color: inherit;">
+  <a href="/blog/friction-log" class="card" style="text-decoration: none; color: inherit;">
 <h3>Friction Log</h3>
 <p class="meta">Where the model bends</p>
 <p>Understand the places where declarative sync composition becomes awkward or brittle.</p>

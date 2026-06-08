@@ -1,7 +1,7 @@
 /**
  * Pipeline error syncs.
  *
- * Filing.read/write, Formatting.render, Layouting.apply,
+ * Filing.read/write/copy, Formatting.render, Layouting.apply,
  * Routing.derive errors → Commanding.fail.
  */
 
@@ -49,6 +49,18 @@ export function createPipelineErrorSyncs({
       [Commanding.issue, { name: "build" }, { command }],
       [Building.start, {}, { build }],
       [Filing.write, {}, { error }],
+    ),
+    then: actions(
+      [Building.fail, { build, error }],
+      [Commanding.fail, { command, error }],
+    ),
+  });
+
+  const CopyErrorFailsBuild: Sync = ({ command, build, error }) => ({
+    when: actions(
+      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
+      [Filing.copy, {}, { error }],
     ),
     then: actions(
       [Building.fail, { build, error }],
@@ -119,6 +131,7 @@ export function createPipelineErrorSyncs({
   return {
     ReadErrorFailsBuild,
     WriteErrorFailsBuild,
+    CopyErrorFailsBuild,
     RenderErrorFailsBuild,
     ApplyErrorFailsBuild,
     DeriveErrorFailsBuild,

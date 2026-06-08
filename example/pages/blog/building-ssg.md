@@ -12,7 +12,7 @@ The example app is a static site generator that reads markdown pages, combines t
 
 ## The Decomposition
 
-Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each owns a narrow slice of behavior.
+Instead of one `SiteBuilder` class, the work is split across 12 concepts. Each owns a narrow slice of behavior.
 
 ### Build Lifecycle
 
@@ -22,9 +22,11 @@ Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each o
 
 **`Building`** owns build status. `start` and `complete` frame a build run. Syncs use `Building.complete` as a barrier — index pages wait for it, cleanup runs after it.
 
+**`Coalescing`** owns rebuild scheduling for dev mode. It lets one build run for a dev session while collapsing rapid follow-up changes into one queued rebuild. It does not know what a build is; it only tracks active and pending requests for a context.
+
 ### File System
 
-**`Filing`** owns file entries. Each entry has a source tag ("content", "layout", "public"), a file path, and optionally content fields. Actions: `scan` discovers files by glob, `read` loads text content, `write` creates output files, `clear` resets state, `cleanOutput` removes stale files. This concept treats all files as UTF-8 text — a deliberate simplification that causes bugs with binary assets.
+**`Filing`** owns file entries. Each entry has a source tag ("content", "layout", "public"), a file path, and optionally content fields. Actions: `scan` discovers files by glob, `read` loads text content, `write` creates text output files, `copy` streams public assets as bytes, `clear` resets state, and `cleanOutput` removes stale files. Text I/O is scoped to content and layouts; public assets use the binary-safe copy path.
 
 ### Content Processing
 
@@ -42,7 +44,7 @@ Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each o
 
 ### Runtime
 
-**`Serving`** starts an HTTP server on a given port. It serves static files from a root directory and maintains SSE connections for live reload. Directory requests like `/blog` resolve to `index.html`.
+**`Serving`** starts an HTTP server on a given port. It serves static files from a root directory and maintains SSE connections for live reload. Directory requests like `/blog` resolve to `index.html`, and live reload is injected based on the resolved file path.
 
 **`Watching`** compares directory snapshots over time. Each `poll` action reports added, changed, and removed file paths. The concept is typed-generic over subject identity, though the current implementation leaks filesystem details.
 
@@ -58,4 +60,4 @@ The code review found that some concepts still carry application-specific contex
 
 ## Next
 
-Read [How Syncs Wire This Repo](/blog/syncs-in-this-repo) to see how these 11 independent concepts become one application.
+Read [How Syncs Wire This Repo](/blog/syncs-in-this-repo) to see how these 12 independent concepts become one application.

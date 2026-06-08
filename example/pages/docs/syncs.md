@@ -10,13 +10,14 @@ Synchronizations (syncs) are **declarative rules** that wire concepts together. 
 ### The `when` / `where` / `then` Pattern
 
 ```typescript
-export const ScanTriggersRead: Sync = ({ entry, entries }) => ({
+export const ScanTriggersRead: Sync = ({ entry, entries, source }) => ({
   // Match when Filing.scan completes successfully
-  when: actions([Filing.scan, {}, { entries }]),
+  when: actions([Filing.scan, {}, { entries, source }]),
 
-  // Fan out: one frame per discovered entry
+  // Fan out non-public entries; public assets use Filing.copy.
   where: (frames) =>
     frames.flatMap((frame) => {
+      if (frame[source] === "public") return [];
       const entryIds = frame[entries] as string[];
       return entryIds.map((id) => ({ ...frame, [entry]: id }));
     }),
@@ -81,7 +82,7 @@ Success syncs use explicit output fields (`{ entries }`), while error syncs matc
 This SSG's build pipeline is a set of small syncs:
 
 1. **BuildCommandStartsBuild / BuildStartedRunsPipeline** — command → build → clears + configure + scans + complete
-2. **ScanTriggersRead** — scan → read per entry
+2. **ScanTriggersRead** — content/layout scan → read per entry
 3. **LayoutReadTriggersDefine** — layout read → define template
 4. **ReadTriggersParse** — content read → parse frontmatter
 5. **ParseTriggersRender** — parse → render markdown
@@ -91,3 +92,4 @@ This SSG's build pipeline is a set of small syncs:
 9. **RenderAndRouteTriggersApply** — render + route → layout
 10. **ApplyTriggersWrite** — layout → write to disk
 11. **FinalizeTriggersIndexRegen** — complete → regenerate list pages
+12. **PublicScanTriggersCopy** — public scan → copy bytes per asset

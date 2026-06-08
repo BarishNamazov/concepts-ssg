@@ -23,16 +23,16 @@ This documentation explains the concept-design model, the static-site generator 
 <p>The <code>when</code>, <code>where</code>, <code>then</code> pattern, frames, queries, matching, and flow isolation.</p>
 </a>
 
-<a href="/docs/ssg-architecture" class="card" style="text-decoration: none; color: inherit;">
-<h3>SSG Architecture</h3>
-<p class="meta">How this repo is structured</p>
-<p>A concept-by-concept map of the generator and the sync groups that compose it.</p>
+<a href="/docs/app-specification" class="card" style="text-decoration: none; color: inherit;">
+<h3>App Specification</h3>
+<p class="meta">Full concept & sync DSL</p>
+<p>The complete specification of every concept and sync with the concept-design DSL.</p>
 </a>
 
 <a href="/issues" class="card" style="text-decoration: none; color: inherit;">
 <h3>Issue Review</h3>
 <p class="meta">The hardening map</p>
-<p>Findings from the code review grouped by the layer they affect: concept design, syncs, engine, filesystem, and parsing.</p>
+<p>Findings from the code review grouped by the layer they affect: concept design, syncs, engine, runtime I/O, and parsing.</p>
 </a>
 
 </div>
@@ -69,6 +69,6 @@ This documentation explains the concept-design model, the static-site generator 
 |---|---|
 | [Concepts](/docs/concepts) | Specification format, state design, actions, queries |
 | [Syncs](/docs/syncs) | Sync DSL, pattern matching, frames, flow isolation |
-| [SSG Architecture](/docs/ssg-architecture) | Current concept and sync structure |
+| [App Specification](/docs/app-specification) | Full concept and sync specification |
 | [Issue Review](/issues) | Review findings grouped by severity |
 | [How Syncs Wire This Repo](/blog/syncs-in-this-repo) | Project-specific sync walkthrough |

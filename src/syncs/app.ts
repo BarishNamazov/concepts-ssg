@@ -15,8 +15,8 @@ import { createContentSync } from "./content.sync";
 import { createDevSyncs } from "./dev.sync";
 import { createDiscoverySync } from "./discovery.sync";
 import { createErrorsSync } from "./errors.sync";
-import { createPipelineErrorSyncs } from "./pipeline-errors.sync";
 import { createOutputSync } from "./output.sync";
+import { createPipelineErrorSyncs } from "./pipeline-errors.sync";
 import { createReportingSyncs } from "./reporting.sync";
 import { createTemplatesSync } from "./templates.sync";
 
@@ -41,6 +41,7 @@ import {
   CommandLine as _CommandLine,
   Serving as _Serving,
   Building,
+  Coalescing,
   Collecting,
   Commanding,
   Filing,
@@ -53,6 +54,7 @@ import {
 
 const defaultSyncs = createSyncs({
   Building,
+  Coalescing,
   Collecting,
   Commanding,
   CommandLine: _CommandLine,

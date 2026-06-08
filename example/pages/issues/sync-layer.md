@@ -23,14 +23,6 @@ These issues are in the sync files that compose concepts into the application â€
 
 **Repair direction:** Chain startup stages with success-only syncs. Add failure propagation. Clean up resources on partial startup failure.
 
-### ISS-008: Dev rebuilds can overlap and corrupt state
-
-**Problem:** Every watch event issues a new build immediately, while builds mutate process-global concept state. No in-flight build guard or coalescing.
-
-**Why it matters:** Rapid changes interleave builds. Stale routes, missing scanned files, or cleanup from the wrong build.
-
-**Repair direction:** Serialize builds per dev session. Coalesce change events while a build is active. Scope mutable state by build ID.
-
 ### ISS-009: Build startup does not clear all build-scoped concepts
 
 **Problem:** Build startup clears `Filing`, `Collecting`, and `Frontmattering` but not `Formatting`, `Layouting`, or existing `Routing` entries.

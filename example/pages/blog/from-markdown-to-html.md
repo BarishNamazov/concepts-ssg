@@ -22,7 +22,7 @@ The scan returns an array of all discovered entry IDs. A discovery sync fans tha
 
 ## 2. Filing Reads the File
 
-`Filing.read({ entry: "entry-1" })` reads the file as UTF-8 text and stores it:
+`Filing.read({ entry: "entry-1" })` reads the markdown file as text and stores it:
 
 ```ts
 // On the entry record:

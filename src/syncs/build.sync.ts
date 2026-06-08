@@ -69,6 +69,7 @@ export function createBuildSync({
       [Filing.clear, {}],
       [Collecting.clear, {}],
       [Frontmattering.clear, {}],
+      [Routing.clear, {}],
       [Routing.configure, { stripPrefix: source, indexName: "index" }],
       [
         Filing.scan,

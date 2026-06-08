@@ -131,6 +131,22 @@ describe("Routing", () => {
     expect(result.entry).toBe("e:defaults" as ID);
   });
 
+  test("clear removes all route entries", async () => {
+    await Routing.configure({ stripPrefix: "pages" });
+    await Routing.derive({ entry: e1, filePath: "pages/about.md" });
+    await Routing.derive({ entry: e2, filePath: "pages/blog/index.md" });
+    await Routing.clear();
+    const r1 = await Routing._getRoute({ entry: e1 });
+    expect(r1).toHaveLength(0);
+    const r2 = await Routing._getRoute({ entry: e2 });
+    expect(r2).toHaveLength(0);
+    const result = (await Routing.derive({
+      entry: e3,
+      filePath: "pages/about.md",
+    })) as RouteSuccess;
+    expect(result.route).toBe("/about");
+  });
+
   test("derive rejects route collisions", async () => {
     await Routing.configure({ stripPrefix: "pages" });
     await Routing.derive({ entry: e1, filePath: "pages/about.md" });
