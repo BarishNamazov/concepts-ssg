@@ -9,7 +9,7 @@ description: "A step-by-step guide to creating a static site — directory struc
 ## How to Build a Site
 
 This guide walks through creating a static site with the SSG. The
-[example site](../example/) is the best reference — it is built by the
+[example site](https://github.com/BarishNamazov/concepts-ssg/tree/main/example) is the best reference — it is built by the
 same tool and documents the project itself.
 
 ## Directory Structure
@@ -240,4 +240,4 @@ mysite/dist/
 ```
 
 That's it. For a full real-world example with collections, blog listings,
-and a design system, see the [example site](../example/).
+and a design system, see the [example site](https://github.com/BarishNamazov/concepts-ssg/tree/main/example).
