@@ -75,7 +75,7 @@ entry: "entry-1"
 metadata: { title: "This Repo in One Pass", date: "2026-06-07", description: "..." }
 ```
 
-This is what powers `<ul>{{#each posts}}<li>{{title}}</li>{{/each}}</ul>` on index pages. The collection query returns all entries in the group with their metadata.
+This is what powers index pages — the collection query returns all entries in a group (like `posts`) with their metadata, and the layout template iterates over them to produce a listing.
 
 ## 7. Layouting Applies the Layout
 
@@ -85,7 +85,7 @@ Layout application waits until both `Formatting.render` and `Routing.derive` hav
 
 1. Looks up the entry's layout field: `"Blog"`
 2. Loads the layout definition: the `Blog.html` template
-3. Substitutes variables: `{{title}}` → `"This Repo in One Pass"`, `{{content}}` → the rendered HTML from Formatting
+3. Substitutes the title and body variables with the entry's metadata and rendered HTML
 
 The layout `Blog.html` embeds the result inside `BaseLayout` with `Header` and `Footer` components, producing the final HTML page.
 

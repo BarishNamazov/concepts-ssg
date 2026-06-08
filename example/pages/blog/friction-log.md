@@ -52,12 +52,12 @@ See [Engine Core Issues](/issues/engine-core).
 
 ## Friction 5: Templates Are Split Across Two Layers
 
-The template feature is small — it supports `<slot/>`, component tags, `{{variable}}`, and `{{#each collection}}`. But two different layers parse template syntax:
+The template feature is small — it supports `<slot/>`, component tags, template variable substitution, and collection iteration loops. But two different layers parse template syntax:
 
-1. **Syncs** inspect `{{#each}}` to decide which collection data to fetch before layout application.
+1. **Syncs** inspect collection loop syntax to decide which collection data to fetch before layout application.
 2. **Layouting** parses the same syntax to render the loop during layout application.
 
-That means `{{#each}}` has two partial parsers that must agree. Adding a new template feature requires coordinated changes in both layers. The dual-parser problem grows with every template feature.
+That means the collection loop syntax has two partial parsers that must agree. Adding a new template feature requires coordinated changes in both layers. The dual-parser problem grows with every template feature.
 
 See [Parsing Issues](/issues/parsing-validation).
 

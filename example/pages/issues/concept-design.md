@@ -17,11 +17,11 @@ These issues are about concepts that carry application-specific concerns, confla
 
 ### ISS-011: Template and collection concepts contain app-specific semantics
 
-**Problem:** `Collecting` mentions frontmatter fields, index pages, and `{{#each posts}}`. Syncs parse collection-loop syntax, inject `_entry`, exclude `type: index`, and sort entries — all outside a template concept.
+**Problem:** `Collecting` mentions frontmatter fields, index pages, and collection loop syntax. Syncs parse collection-loop syntax, inject `_entry`, exclude `type: index`, and sort entries — all outside a template concept.
 
 **Why it matters:** Generic collection behavior is tied to one app's conventions and one template syntax. Adding a template feature requires changes in both syncs and layout code.
 
-**Repair direction:** Make `Collecting` generic over membership and metadata only. Move `{{#each}}`, sort, and self-exclusion into a template concept with typed actions.
+**Repair direction:** Make `Collecting` generic over membership and metadata only. Move collection loop, sort, and self-exclusion into a template concept with typed actions.
 
 ### ISS-012: Watching knows too much about filesystem/runtime
 

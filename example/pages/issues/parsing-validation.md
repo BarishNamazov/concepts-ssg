@@ -17,7 +17,7 @@ These issues are about regex-based parsing, input validation, and fragile detect
 
 ### ISS-018: Layout rendering hides missing layouts and uses brittle regex parsing
 
-**Problem:** Missing layouts silently fall back to raw content. Template tags are parsed with regular expressions. Raw `{{#each}}` or `{{title}}` in markdown/code blocks can collide with template rendering.
+**Problem:** Missing layouts silently fall back to raw content. Template tags are parsed with regular expressions. Raw template syntax in markdown or code blocks can collide with template rendering.
 
 **Why it matters:** Layout typos and load-order bugs can build successfully. Page body content can accidentally corrupt template output.
 
