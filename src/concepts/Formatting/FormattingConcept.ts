@@ -20,31 +20,26 @@ export default class FormattingConcept {
     entry,
     source,
     format,
-    command,
   }: {
     entry?: ID;
     source: string;
     format: string;
-    command?: string;
-  }): Promise<
-    | { entry: ID; html: string; command?: string }
-    | { error: string; command?: string }
-  > {
+  }): Promise<{ entry: ID; html: string } | { error: string }> {
     if (format === "html") {
       const id = entry ?? freshID();
       this.entries.set(id, { _id: id, source, format, html: source });
-      return { entry: id, html: source, command };
+      return { entry: id, html: source };
     }
 
     if (format !== "markdown") {
-      return { error: `unsupported format: ${format}`, command };
+      return { error: `unsupported format: ${format}` };
     }
 
     let html: string;
     try {
       html = await marked.parse(source);
     } catch (err) {
-      return { error: `Failed to render markdown: ${String(err)}`, command };
+      return { error: `Failed to render markdown: ${String(err)}` };
     }
 
     const id = entry ?? freshID();
@@ -56,7 +51,7 @@ export default class FormattingConcept {
       html,
     });
 
-    return { entry: id, html, command };
+    return { entry: id, html };
   }
 
   _getHtml({ entry }: { entry: ID }): { html: string }[] {

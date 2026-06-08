@@ -9,25 +9,26 @@ beforeEach(() => {
 
 describe("Building", () => {
   test("start creates a build in RUNNING status", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     expect(typeof build).toBe("string");
     const [doc] = await Building._get({ build });
     expect(doc.status).toBe("RUNNING");
   });
 
-  test("start with command uses it as build id", async () => {
-    const { build } = await Building.start({ command: "cmd-123" });
-    expect(build as string).toBe("cmd-123");
+  test("start allocates concept-owned ids", async () => {
+    const { build } = await Building.start();
+    expect(typeof build).toBe("string");
+    expect(build as string).not.toBe("cmd-123");
   });
 
-  test("start without command generates unique ids", async () => {
-    const b1 = await Building.start({});
-    const b2 = await Building.start({});
+  test("start generates unique ids", async () => {
+    const b1 = await Building.start();
+    const b2 = await Building.start();
     expect(b1.build).not.toBe(b2.build);
   });
 
   test("complete transitions RUNNING to SUCCEEDED", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     await Building.complete({ build });
     const [doc] = await Building._get({ build });
     expect(doc.status).toBe("SUCCEEDED");
@@ -39,7 +40,7 @@ describe("Building", () => {
   });
 
   test("complete returns error when not RUNNING", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     await Building.complete({ build });
     const result = await Building.complete({ build });
     expect("error" in result).toBe(true);
@@ -49,7 +50,7 @@ describe("Building", () => {
   });
 
   test("fail transitions RUNNING to FAILED", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     await Building.fail({ build, error: "something broke" });
     const [doc] = await Building._get({ build });
     expect(doc.status).toBe("FAILED");
@@ -65,14 +66,14 @@ describe("Building", () => {
   });
 
   test("fail returns error when not RUNNING", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     await Building.complete({ build });
     const result = await Building.fail({ build, error: "late" });
     expect("error" in result).toBe(true);
   });
 
   test("cannot complete a FAILED build", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
     await Building.fail({ build, error: "bad" });
     const result = await Building.complete({ build });
     expect("error" in result).toBe(true);
@@ -84,7 +85,7 @@ describe("Building", () => {
   });
 
   test("principle: start, succeed, verify final state", async () => {
-    const { build } = await Building.start({ command: "build-1" });
+    const { build } = await Building.start();
 
     // Initially RUNNING
     let [doc] = await Building._get({ build });
@@ -101,7 +102,7 @@ describe("Building", () => {
   });
 
   test("principle: start, fail, verify error preserved", async () => {
-    const { build } = await Building.start({});
+    const { build } = await Building.start();
 
     await Building.fail({ build, error: "scan dir not found" });
 

@@ -42,29 +42,24 @@ export default class FilingConcept {
     patterns,
     outputDirectory,
     source,
-    command,
   }: {
     directory: string;
     patterns: string[];
     outputDirectory: string;
     source: string;
-    command?: string;
-  }): Promise<
-    | { source: string; entries: Entry[]; command?: string }
-    | { error: string; command?: string }
-  > {
+  }): Promise<{ source: string; entries: Entry[] } | { error: string }> {
     if (directory === "") {
       this.config = { outputDirectory };
-      return { source, entries: [], command };
+      return { source, entries: [] };
     }
 
     try {
       const dirStat = await stat(directory);
       if (!dirStat.isDirectory()) {
-        return { error: `Not a directory: ${directory}`, command };
+        return { error: `Not a directory: ${directory}` };
       }
     } catch {
-      return { error: `Directory does not exist: ${directory}`, command };
+      return { error: `Directory does not exist: ${directory}` };
     }
 
     const docs: EntryDoc[] = [];
@@ -98,22 +93,17 @@ export default class FilingConcept {
 
     this.config = { outputDirectory };
 
-    return { source, entries: entryIds, command };
+    return { source, entries: entryIds };
   }
 
   async read({
     entry,
-    command,
   }: {
     entry: Entry;
-    command?: string;
-  }): Promise<
-    | { entry: Entry; content: string; command?: string }
-    | { error: string; command?: string }
-  > {
+  }): Promise<{ entry: Entry; content: string } | { error: string }> {
     const doc = this.entries.get(entry);
     if (doc === undefined) {
-      return { error: `Entry not found: ${entry}`, command };
+      return { error: `Entry not found: ${entry}` };
     }
 
     const fullPath = path.join(doc.root, doc.path);
@@ -121,37 +111,29 @@ export default class FilingConcept {
     try {
       content = await readFile(fullPath, "utf-8");
     } catch {
-      return { error: `Failed to read file: ${fullPath}`, command };
+      return { error: `Failed to read file: ${fullPath}` };
     }
 
     doc.content = content;
-    return { entry, content, command };
+    return { entry, content };
   }
 
   async write({
     entry,
     outputRelativePath,
-    command,
   }: {
     entry: Entry;
     outputRelativePath?: string;
-    command?: string;
-  }): Promise<
-    | { entry: Entry; outputPath: string; command?: string }
-    | { error: string; command?: string }
-  > {
+  }): Promise<{ entry: Entry; outputPath: string } | { error: string }> {
     const doc = this.entries.get(entry);
     if (doc === undefined) {
-      return { error: `Entry not found: ${entry}`, command };
+      return { error: `Entry not found: ${entry}` };
     }
     if (doc.content === undefined) {
-      return {
-        error: `Entry has no content — call read first: ${entry}`,
-        command,
-      };
+      return { error: `Entry has no content — call read first: ${entry}` };
     }
     if (this.config.outputDirectory === "") {
-      return { error: "No Config found — call scan first", command };
+      return { error: "No Config found — call scan first" };
     }
 
     const outputPath = path.join(
@@ -163,40 +145,33 @@ export default class FilingConcept {
     try {
       await mkdir(outputDir, { recursive: true });
     } catch (err) {
-      return {
-        error: `Failed to create output directory: ${String(err)}`,
-        command,
-      };
+      return { error: `Failed to create output directory: ${String(err)}` };
     }
 
     try {
       await writeFile(outputPath, doc.content, "utf-8");
     } catch (err) {
-      return { error: `Failed to write file: ${String(err)}`, command };
+      return { error: `Failed to write file: ${String(err)}` };
     }
     doc.written = true;
     doc.outputPath = outputPath;
 
-    return { entry, outputPath, command };
+    return { entry, outputPath };
   }
 
   async setContent({
     entry,
     content,
-    command,
   }: {
     entry: Entry;
     content: string;
-    command?: string;
-  }): Promise<
-    { entry: Entry; command?: string } | { error: string; command?: string }
-  > {
+  }): Promise<{ entry: Entry } | { error: string }> {
     const doc = this.entries.get(entry);
     if (doc === undefined) {
-      return { error: `Entry not found: ${entry}`, command };
+      return { error: `Entry not found: ${entry}` };
     }
     doc.content = content;
-    return { entry, command };
+    return { entry };
   }
 
   async clear(): Promise<Empty> {

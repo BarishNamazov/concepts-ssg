@@ -13,7 +13,7 @@ const e2 = "entry:b" as ID;
 const e3 = "entry:c" as ID;
 const e4 = "entry:d" as ID;
 
-type RouteSuccess = { entry: ID; route: string; command?: string };
+type RouteSuccess = { entry: ID; route: string };
 
 describe("Routing", () => {
   test("derive strips prefix and extension", async () => {

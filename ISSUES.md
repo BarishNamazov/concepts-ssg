@@ -1,32 +1,12 @@
 # Issues & Improvements
 
-Code review focus: brittle/flaky logic and concept independence. Concepts do not directly import each other, but several concept implementations still carry command/app/template concerns that make them less reusable and harder to reason about independently.
+Code review focus: brittle/flaky logic and concept independence. Concepts do not directly import each other, but several concept implementations still carry app/template concerns that make them less reusable and harder to reason about independently.
 
 Issues are grouped by the layer they affect — concept design, sync composition, engine core, filesystem safety, or parsing — rather than by severity.
 
 ## Concept Design
 
 Issues where concepts carry application-specific concerns, conflate identity spaces, or use global mutable state.
-
-### ISS-010: Command correlation leaks into independent concepts
-
-Evidence: `src/concepts/Building/BuildingConcept.ts:31-40`, `src/concepts/Publishing/PublishingConcept.ts:41-61`, `src/concepts/Filing/FilingConcept.ts:40-55`, `src/concepts/Formatting/FormattingConcept.ts:19-31`, `src/concepts/Frontmattering/FrontmatteringConcept.ts:36-52`, `src/concepts/Layouting/LayoutingConcept.ts:78-90`, `src/concepts/Routing/RoutingConcept.ts:42-53`
-
-Many concepts accept or return `command` solely for sync correlation. `Building.start` and `Publishing.begin` also cast the command ID into their own local IDs, so repeated or shared commands can overwrite concept-owned state.
-
-Impact: concepts know about the app's command orchestration and are less reusable. ID spaces are conflated, and concept tests can miss bugs caused by duplicate or reused external IDs.
-
-Suggested fix: have concepts allocate their own IDs with `freshID()`. Keep command/build correlation in sync frames or an explicit generic mapping concept rather than embedding it in every concept action.
-
-### ISS-011: Template and collection concepts contain app-specific semantics
-
-Evidence: `src/concepts/Collecting/CollectingConcept.ts:12-21`, `src/concepts/Collecting/CollectingConcept.ts:92-100`, `src/syncs/content.sync.ts:71-113`, `src/syncs/templates.sync.ts:129-177`, `src/syncs/templates.sync.ts:187-205`
-
-`Collecting` mentions frontmatter, index pages, and `{{#each posts}}`. Syncs parse template syntax, inject `_entry`, exclude `type: index`, and implement sorting outside a template concept. This makes generic collection behavior depend on this app's static-site conventions.
-
-Impact: collection and layout behavior is brittle and hard to reuse in another app. New template syntax must be updated in multiple places.
-
-Suggested fix: make `Collecting` generic over membership and metadata only. Move `{{#each}}`, sort, and self-exclusion semantics into a template/rendering concept or explicit sync-level concept with typed actions/queries.
 
 ### ISS-012: Watching knows too much about filesystem/runtime and can emit stale polls
 
@@ -86,21 +66,11 @@ Issues in how syncs compose concepts — stage gating, failure propagation, orde
 
 Evidence: `src/syncs/build.sync.ts:59-98`, `src/syncs/errors.sync.ts:16-29`, `src/syncs/pipeline-errors.sync.ts:32-58`
 
-`BuildCommand` issues `Building.complete`, `Filing.cleanOutput`, and `Commanding.succeed` in the same `then` list as scans. Sync `then` actions do not short-circuit on `{ error }`, so scan/read/render/write/route failures can still be followed by destructive cleanup and command success. Several later error syncs attempt `Commanding.fail`, but they can race with or lose to `Commanding.succeed`.
+The build sync issues `Building.complete`, `Filing.cleanOutput`, and `Commanding.succeed` in the same `then` list as scans. Sync `then` actions do not short-circuit on `{ error }`, so scan/read/render/write/route failures can still be followed by destructive cleanup and command success. Several later error syncs attempt `Commanding.fail`, but they can race with or lose to `Commanding.succeed`.
 
 Impact: failed builds can appear successful, output cleanup can run after incomplete writes, and CLI status can become misleading.
 
 Suggested fix: model build stages explicitly. Complete and succeed only after querying that the command/build is still running and all required operations succeeded. Treat cleanup as command-scoped and fail the command on cleanup error before any success action.
-
-### ISS-006: Pipeline errors are not consistently command-scoped
-
-Evidence: `src/syncs/content.sync.ts:36-68`, `src/syncs/templates.sync.ts:63-95`, `src/syncs/templates.sync.ts:97-215`, `src/syncs/publishing.sync.ts:21-45`, `src/syncs/assets.sync.ts:11-17`, `src/syncs/pipeline-errors.sync.ts:32-58`
-
-The error syncs expect `Filing.read`, `Filing.write`, `Formatting.render`, and `Layouting.apply` errors to carry `command`, but most syncs that invoke those actions omit `command`. `DeriveErrorFailsBuild` also calls `Commanding._get` without binding a command, so it produces no frames.
-
-Impact: disappearing files, route collisions, layout errors, render errors, and write failures can fail locally while the build command still succeeds.
-
-Suggested fix: propagate build/command context through every command-originated pipeline action, or add an explicit build context concept/mapping. Fix route error handling by binding the command from the route request flow or carrying context into `Routing.derive`.
 
 ### ISS-007: Dev startup can partially start resources and leave CLI pending
 
@@ -131,26 +101,6 @@ Build startup clears `Filing`, `Collecting`, and `Frontmattering`, but not `Form
 Impact: later builds in the same process can use removed layouts, stale rendered HTML, or stale route collisions.
 
 Suggested fix: add reset/clear actions for all build-scoped state and invoke them at build start, or make all relevant records keyed by build ID.
-
-### ISS-019: Collection metadata updates depend on sync registration order
-
-Evidence: `src/syncs/content.sync.ts:71-113`, `src/syncs/app.ts:23-36`
-
-`RouteTriggersUpdateIndex` calls `Collecting.collect` with `collections: []`, replacing any existing collection list. Correct final metadata depends on `ParseTriggersCollect` running after route metadata collection to restore membership.
-
-Impact: changing sync registration order or manually deriving routes can silently remove entries from collections.
-
-Suggested fix: add a metadata-only update action, or query and preserve existing collection memberships when updating route metadata.
-
-### ISS-020: Final index regeneration skips layoutless collection pages
-
-Evidence: `src/syncs/templates.sync.ts:109-142`
-
-`FinalizeTriggersIndexRegen` inner-joins on `Layouting._getLayout` before checking the body for `{{#each}}`. If a page intentionally has no layout but its body contains a collection loop, the frame is dropped.
-
-Impact: collection pages can build without collection data and without an error.
-
-Suggested fix: make the layout query optional and search body HTML when no layout exists, or require layout presence consistently and report a build error.
 
 ### ISS-026: Dev watches only source content
 

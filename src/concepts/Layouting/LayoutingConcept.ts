@@ -1,4 +1,4 @@
-import type { ID } from "@utils/types.ts";
+import type { Empty, ID } from "@utils/types.ts";
 
 type Layout = ID;
 type Entry = ID;
@@ -19,16 +19,53 @@ interface EntryDoc {
   composed?: string;
 }
 
+/** Parsed `{{#each}}` block from a template. */
+export interface EachBlock {
+  collection: string;
+  sortBy?: string;
+  excludeCurrent: boolean;
+  inner: string;
+  fullMatch: string;
+}
+
+/** One item in a sequence passed to `apply`. */
+export interface SequenceItem {
+  entry: ID;
+  fields: Record<string, string>;
+}
+
+type TemplateVariables = Record<string, string>;
+type TemplateSequences = Record<string, SequenceItem[]>;
+
 const SELF_CLOSE_RE = /<([A-Z]\w*)\s*\/>/g;
 const WRAP_OPEN_RE = /<([A-Z]\w*)>/g;
 const VAR_RE = /\{\{(\w+)\}\}/g;
-const EACH_RE = /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
 const SLOT_RE = /<slot\b[^>]*>([\s\S]*?)<\/slot>|<slot\s*\/>/g;
 
+/** Matches a full `{{#each …}}…{{/each}}` block. */
+const EACH_BLOCK_RE =
+  /\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
+
+/** Splits a directive string like `posts sort=date excludeCurrent=false`. */
+const TOKEN_RE = /[^\s"']+|"[^"]*"|'[^']*'/g;
+
+/**
+ * Layouting concept — own template definitions, component resolution, and
+ * template rendering (variable substitution, slots, `{{#each}}` loops).
+ *
+ * **purpose** define HTML layouts and apply them to entries with typed
+ *   variables and sequences
+ *
+ * **principle** after a layout is defined and applied to an entry with
+ *   variables and optional sequence data, the composed HTML reflects
+ *   variable substitution, component resolution, and sequence iteration
+ */
 export default class LayoutingConcept {
   private layouts = new Map<Layout, LayoutDoc>();
   private layoutDeps = new Map<Layout, LayoutDep>();
   private entries = new Map<Entry, EntryDoc>();
+
+  // ── public actions ───────────────────────────────────────────────────
 
   async define({
     name,
@@ -75,20 +112,26 @@ export default class LayoutingConcept {
     return { layoutName, composed };
   }
 
+  /**
+   * apply ({ entry, layoutName, variables, sequences? }):
+   *   ({ entry, composed }) | ({ error })
+   *
+   * **requires** none (missing layout falls through to raw content)
+   *
+   * **effects** resolves the layout, substitutes variables, iterates
+   *   `{{#each}}` blocks using sequence data, and stores the composed HTML
+   */
   async apply({
     entry,
     layoutName,
     variables,
-    command,
+    sequences,
   }: {
     entry: Entry;
     layoutName: string;
-    variables: Record<string, string | Record<string, string>[]>;
-    command?: string;
-  }): Promise<
-    | { entry: Entry; composed: string; command?: string }
-    | { error: string; command?: string }
-  > {
+    variables: TemplateVariables;
+    sequences?: TemplateSequences;
+  }): Promise<{ entry: Entry; composed: string } | { error: string }> {
     const resolved = this.#resolveLayout(layoutName, new Set());
     if (typeof resolved === "object" && "error" in resolved) {
       if (resolved.error.startsWith("Layout not found")) {
@@ -98,9 +141,9 @@ export default class LayoutingConcept {
         doc.layoutName = layoutName;
         doc.composed = composed;
         this.entries.set(entry, doc);
-        return { entry, composed, command };
+        return { entry, composed };
       }
-      return { ...resolved, command };
+      return resolved;
     }
 
     const slotContent =
@@ -109,6 +152,8 @@ export default class LayoutingConcept {
       resolved as string,
       variables,
       slotContent,
+      sequences ?? {},
+      entry,
     );
 
     const doc = this.entries.get(entry) ?? { _id: entry };
@@ -116,8 +161,10 @@ export default class LayoutingConcept {
     doc.composed = composed;
     this.entries.set(entry, doc);
 
-    return { entry, composed, command };
+    return { entry, composed };
   }
+
+  // ── queries ──────────────────────────────────────────────────────────
 
   async _getLayout({
     name,
@@ -146,12 +193,46 @@ export default class LayoutingConcept {
   }
 
   /**
-   * remove ({ name }): ({ name }) | ({ error })
+   * _getSequenceRequests ({ layoutName, content }):
+   *   ({ collection, sortBy? })[]
    *
-   * **requires** `name` is an existing layout
+   * **requires** none
    *
-   * **effects** removes the layout definition and its dependency record
+   * **effects** resolves the layout, inserts content into its slot, parses
+   *   `{{#each}}` blocks, and returns the unique collection names (with
+   *   optional `sortBy`) that the template requires
    */
+  async _getSequenceRequests({
+    layoutName,
+    content,
+  }: {
+    layoutName: string;
+    content: string;
+  }): Promise<{ collection: string; sortBy?: string }[]> {
+    const resolved = this.#resolveLayout(layoutName, new Set());
+    const template =
+      typeof resolved === "string"
+        ? // slot content into layout to get the effective template
+          resolved.replace(SLOT_RE, (_full, fallback?: string) => {
+            return content !== undefined ? content : fallback ?? "";
+          })
+        : content;
+
+    const blocks = this.#parseEachBlocks(template);
+    if ("error" in blocks) return [];
+
+    const seen = new Map<string, string | undefined>();
+    for (const block of blocks as EachBlock[]) {
+      seen.set(block.collection, block.sortBy);
+    }
+    return [...seen.entries()].map(([collection, sortBy]) => ({
+      collection,
+      sortBy,
+    }));
+  }
+
+  // ── mutation ─────────────────────────────────────────────────────────
+
   async remove({
     name,
   }: {
@@ -166,6 +247,15 @@ export default class LayoutingConcept {
     return { name };
   }
 
+  async clear(): Promise<Empty> {
+    this.layouts.clear();
+    this.layoutDeps.clear();
+    this.entries.clear();
+    return {};
+  }
+
+  // ── private template parsing ─────────────────────────────────────────
+
   #parseUses(source: string): Layout[] {
     const names = new Set<string>();
     for (const m of source.matchAll(SELF_CLOSE_RE)) {
@@ -178,6 +268,55 @@ export default class LayoutingConcept {
     WRAP_OPEN_RE.lastIndex = 0;
     return [...names] as Layout[];
   }
+
+  /**
+   * Parse all `{{#each …}}…{{/each}}` blocks from a template string.
+   *
+   * Supported directive options:
+   *   `sort=<field>`
+   *   `excludeCurrent=true|false` (default true)
+   */
+  #parseEachBlocks(
+    template: string,
+  ): EachBlock[] | { error: string } {
+    const blocks: EachBlock[] = [];
+
+    for (const match of template.matchAll(EACH_BLOCK_RE)) {
+      const [fullMatch, directive, inner] = match;
+      const tokens =
+        directive
+          .trim()
+          .match(TOKEN_RE)
+          ?.map((t) => t.replace(/^["']|["']$/g, "")) ?? [];
+      if (tokens.length === 0) continue;
+
+      const collection = tokens[0];
+      let sortBy: string | undefined;
+      let excludeCurrent = true;
+
+      for (const token of tokens.slice(1)) {
+        const eqIdx = token.indexOf("=");
+        if (eqIdx === -1) {
+          return { error: `Unsupported each option: ${token}` };
+        }
+        const key = token.slice(0, eqIdx);
+        const value = token.slice(eqIdx + 1);
+        if (key === "sort") {
+          sortBy = value;
+        } else if (key === "excludeCurrent") {
+          excludeCurrent = value !== "false";
+        } else {
+          return { error: `Unsupported each option: ${key}` };
+        }
+      }
+
+      blocks.push({ collection, sortBy, excludeCurrent, inner, fullMatch });
+    }
+
+    return blocks;
+  }
+
+  // ── private layout resolution ────────────────────────────────────────
 
   #resolveLayout(
     layoutName: string,
@@ -227,10 +366,14 @@ export default class LayoutingConcept {
     return source;
   }
 
+  // ── private render ───────────────────────────────────────────────────
+
   #renderTemplate(
     template: string,
-    variables: Record<string, string | Record<string, string>[]>,
-    slotContent?: string,
+    variables: TemplateVariables,
+    slotContent: string | undefined,
+    sequences: TemplateSequences,
+    currentEntry: Entry | undefined,
   ): string {
     let result = template.replace(
       SLOT_RE,
@@ -240,15 +383,33 @@ export default class LayoutingConcept {
       },
     );
 
+    // Resolve {{#each}} blocks before scalar variables so `{{title}}` in
+    // each-block inner templates resolves against item fields.
     result = result.replace(
-      EACH_RE,
-      (_m, collectionName: string, inner: string) => {
-        const collection = variables[collectionName];
-        if (!Array.isArray(collection) || collection.length === 0) return "";
-        return collection
+      EACH_BLOCK_RE,
+      (_full: string, _directive: string, inner: string) => {
+        const blocks = this.#parseEachBlocks(_full);
+        if (typeof blocks === "object" && "error" in blocks) return "";
+        const block = (blocks as EachBlock[])[0];
+        if (block === undefined) return "";
+
+        const items = sequences[block.collection] ?? [];
+        let filtered = items;
+        if (block.excludeCurrent && currentEntry !== undefined) {
+          filtered = filtered.filter((item) => item.entry !== currentEntry);
+        }
+        if (block.sortBy) {
+          filtered = [...filtered].sort((a, b) =>
+            (b.fields[block.sortBy] ?? "").localeCompare(
+              a.fields[block.sortBy] ?? "",
+            ),
+          );
+        }
+
+        return filtered
           .map((item) =>
             inner.replace(VAR_RE, (_vm: string, varName: string) => {
-              return (item as Record<string, string>)[varName] ?? "";
+              return item.fields[varName] ?? "";
             }),
           )
           .join("");

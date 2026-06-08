@@ -28,14 +28,14 @@ export default class BuildingConcept {
   private builds = new Map<Build, BuildDoc>();
 
   /**
-   * start ({ command? }): ({ build })
+   * start ({}): ({ build })
    *
    * **requires** true
    *
    * **effects** creates a new build in RUNNING status
    */
-  async start({ command }: { command?: string }): Promise<{ build: Build }> {
-    const id = (command ?? freshID()) as Build;
+  async start(): Promise<{ build: Build }> {
+    const id = freshID();
     this.builds.set(id, { _id: id, status: "RUNNING" });
     return { build: id };
   }

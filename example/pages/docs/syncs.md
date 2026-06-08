@@ -61,9 +61,16 @@ where: async (frames) => {
 Error handling is also declarative — match on `{ error }` output patterns:
 
 ```typescript
-const ScanErrorFailsBuild: Sync = ({ command, error }) => ({
-  when: actions([Filing.scan, { command }, { error }]),
-  then: actions([Commanding.fail, { command, error }]),
+const ScanErrorFailsBuild: Sync = ({ command, build, error }) => ({
+  when: actions(
+    [Commanding.issue, { name: "build" }, { command }],
+    [Building.start, {}, { build }],
+    [Filing.scan, {}, { error }],
+  ),
+  then: actions(
+    [Building.fail, { build, error }],
+    [Commanding.fail, { command, error }],
+  ),
 });
 ```
 
@@ -71,9 +78,9 @@ Success syncs use explicit output fields (`{ entries }`), while error syncs matc
 
 ### The Build Pipeline
 
-This SSG's entire build pipeline is 11 syncs:
+This SSG's build pipeline is a set of small syncs:
 
-1. **BuildCommand** — command → clears + configure + scans + complete
+1. **BuildCommandStartsBuild / BuildStartedRunsPipeline** — command → build → clears + configure + scans + complete
 2. **ScanTriggersRead** — scan → read per entry
 3. **LayoutReadTriggersDefine** — layout read → define template
 4. **ReadTriggersParse** — content read → parse frontmatter

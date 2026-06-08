@@ -32,19 +32,28 @@ export function createBuildSync({
   Frontmattering,
   Routing,
 }: C) {
-  const BuildCommand: Sync = ({
+  const BuildCommandStartsBuild: Sync = ({ command, args }) => ({
+    when: actions([
+      Commanding.issue,
+      { name: "build", args },
+      { command, name: "build" },
+    ]),
+    then: actions([Building.start, {}]),
+  });
+
+  const BuildStartedRunsPipeline: Sync = ({
     command,
+    build,
     args,
     source,
     output,
     layouts,
     publicDir,
   }) => ({
-    when: actions([
-      Commanding.issue,
-      { name: "build", args },
-      { command, name: "build" },
-    ]),
+    when: actions(
+      [Commanding.issue, { name: "build", args }, { command }],
+      [Building.start, {}, { build }],
+    ),
     where: (frames) =>
       frames.map((frame) => {
         const cmdArgs = frame[args] as Record<string, string>;
@@ -57,7 +66,6 @@ export function createBuildSync({
         };
       }),
     then: actions(
-      [Building.start, { command }],
       [Filing.clear, {}],
       [Collecting.clear, {}],
       [Frontmattering.clear, {}],
@@ -69,7 +77,6 @@ export function createBuildSync({
           patterns: ["*.html"],
           outputDirectory: output,
           source: "layouts",
-          command,
         },
       ],
       [
@@ -79,7 +86,6 @@ export function createBuildSync({
           patterns: ["**/*.{md,html,htm}"],
           outputDirectory: output,
           source: "content",
-          command,
         },
       ],
       [
@@ -89,16 +95,15 @@ export function createBuildSync({
           patterns: ["**/*"],
           outputDirectory: output,
           source: "public",
-          command,
         },
       ],
-      [Building.complete, { build: command }],
+      [Building.complete, { build }],
       [Filing.cleanOutput, {}],
       [Commanding.succeed, { command }],
     ),
   });
 
-  return { BuildCommand };
+  return { BuildCommandStartsBuild, BuildStartedRunsPipeline };
 }
 
 const defaultSyncs = createBuildSync({

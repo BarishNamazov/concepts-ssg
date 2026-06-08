@@ -9,16 +9,14 @@ interface IndexEntry {
 }
 
 /**
- * Collecting concept — aggregate entry metadata by collection for index/list
- * pages.  Each entry declares which collections it belongs to via frontmatter
- * (e.g., `collections: posts`).  The index page is itself a member of the
- * collection; it is excluded from its own listing.
+ * Collecting concept — aggregate entries into named collections with
+ * arbitrary metadata.
  *
- * **purpose** aggregate entry metadata by collection for index/list pages
+ * **purpose** group entries into named collections, each carrying a flat
+ *   mapping of metadata keyed by string
  *
- * **principle** after entries declare `collections: posts` in frontmatter
- * and an index page joins the same collection, the index page can iterate
- * all other members via `{{#each posts}}` in its template.
+ * **principle** after entries are collected into a named collection, all
+ *   members and their metadata can be retrieved by collection name
  */
 export default class CollectingConcept {
   private indexed = new Map<Entry, IndexEntry>();
@@ -82,21 +80,45 @@ export default class CollectingConcept {
   }
 
   /**
-   * _getEntries ({ collection }): ({ metadata })
+   * updateMetadata ({ entry, metadata }): ({ entry }) | ({ error })
+   *
+   * **requires** `entry` is an existing collected entry
+   *
+   * **effects** merges the provided metadata into the entry's existing
+   *   metadata without changing collection memberships
+   */
+  async updateMetadata({
+    entry,
+    metadata,
+  }: {
+    entry: Entry;
+    metadata: Record<string, string>;
+  }): Promise<{ entry: Entry }> {
+    const existing = this.indexed.get(entry);
+    if (!existing) {
+      this.indexed.set(entry, { _id: entry, collections: [], metadata });
+    } else {
+      existing.metadata = { ...existing.metadata, ...metadata };
+      this.indexed.set(entry, existing);
+    }
+    return { entry };
+  }
+
+  /**
+   * _getEntries ({ collection }): ({ entry, metadata })
    *
    * **requires** true
    *
    * **effects** returns all collected entries that belong to the given
-   *   collection
+   *   collection, each with its identity and metadata
    */
   async _getEntries({
     collection,
   }: {
     collection: string;
-  }): Promise<{ metadata: Record<string, string> }[]> {
-    const entries = [...this.indexed.values()]
+  }): Promise<{ entry: Entry; metadata: Record<string, string> }[]> {
+    return [...this.indexed.values()]
       .filter((e) => e.collections.includes(collection))
-      .map((e) => ({ metadata: e.metadata }));
-    return entries;
+      .map((e) => ({ entry: e._id, metadata: e.metadata }));
   }
 }

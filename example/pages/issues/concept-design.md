@@ -7,22 +7,6 @@ layout: Blog
 
 These issues are about concepts that carry application-specific concerns, conflate identity spaces, or store state at the wrong scope. Each one makes a concept less independent and harder to reuse.
 
-### ISS-010: Command correlation leaks into independent concepts
-
-**Problem:** `Building`, `Filing`, `Formatting`, `Frontmattering`, `Layouting`, `Routing`, and `Publishing` all accept a `command` parameter solely for sync correlation. `Building.start` casts the command ID into its own ID space, conflating external tokens with concept-owned identity.
-
-**Why it matters:** Concepts become aware of app orchestration. A `Formatting` concept should not know that some application wraps it in a command lifecycle. ID collision bugs from reused external IDs can also be invisible in isolated concept tests.
-
-**Repair direction:** Let concepts allocate their own IDs with `freshID()`. Keep command/build correlation in sync frames or a generic mapping concept.
-
-### ISS-011: Template and collection concepts contain app-specific semantics
-
-**Problem:** `Collecting` mentions frontmatter fields, index pages, and collection loop syntax. Syncs parse collection-loop syntax, inject `_entry`, exclude `type: index`, and sort entries — all outside a template concept.
-
-**Why it matters:** Generic collection behavior is tied to one app's conventions and one template syntax. Adding a template feature requires changes in both syncs and layout code.
-
-**Repair direction:** Make `Collecting` generic over membership and metadata only. Move collection loop, sort, and self-exclusion into a template concept with typed actions.
-
 ### ISS-012: Watching knows too much about filesystem/runtime
 
 **Problem:** `Watching` is nominally generic over `Subject`, but casts subjects to strings for a filesystem driver and stores a sync-engine callback. Timer callbacks do not check active status before emitting.

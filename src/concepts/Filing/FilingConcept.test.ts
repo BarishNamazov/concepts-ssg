@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import FilingConcept from "./FilingConcept.ts";
 
-type ScanSuccess = { source: string; entries: string[]; command?: string };
+type ScanSuccess = { source: string; entries: string[] };
 
 let Filing: FilingConcept;
 let tempDir: string;

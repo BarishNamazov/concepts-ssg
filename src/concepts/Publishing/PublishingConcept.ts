@@ -39,7 +39,7 @@ export default class PublishingConcept {
   private artifacts = new Map<Artifact, ArtifactDoc>();
 
   /**
-   * begin ({ destination, command? }): ({ publication })
+   * begin ({ destination }): ({ publication })
    *
    * **requires** destination is a valid filesystem path
    *
@@ -47,12 +47,10 @@ export default class PublishingConcept {
    */
   async begin({
     destination,
-    command,
   }: {
     destination: string;
-    command?: string;
   }): Promise<{ publication: Publication }> {
-    const id = (command ?? freshID()) as Publication;
+    const id = freshID();
     this.publications.set(id, {
       _id: id,
       destination,

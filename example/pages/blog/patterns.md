@@ -84,25 +84,25 @@ export const FinalizeTriggersIndexRegen: Sync = ({}) => ({
 
 **Where it bends:** `Building.complete` can fire after earlier actions returned errors, so the barrier is unreliable.
 
-## Pattern 4: Thread Context Through Actions
+## Pattern 4: Correlate Context Through Flow
 
-Several actions carry a `command` parameter so error syncs can correlate failures back to the command that started the work.
-
-```ts
-// In build.sync.ts, the command ID is threaded through:
-Filing.scan({ command, root, glob })
-```
-
-Later, an error sync matches on the error output and fails the command:
+Error syncs correlate failures back to the command that started the work by matching actions in the same causal flow. The file, formatting, layout, and routing concepts do not carry a `command` parameter.
 
 ```ts
-export const ScanErrorFailsBuild: Sync = ({ command, error }) => ({
-  when: actions([Filing.scan, { command }, { error }]),
-  then: actions([Commanding.fail, { command, error }]),
+export const ScanErrorFailsBuild: Sync = ({ command, build, error }) => ({
+  when: actions(
+    [Commanding.issue, { name: "build" }, { command }],
+    [Building.start, {}, { build }],
+    [Filing.scan, {}, { error }],
+  ),
+  then: actions(
+    [Building.fail, { build, error }],
+    [Commanding.fail, { command, error }],
+  ),
 });
 ```
 
-**Where it bends:** Many actions that can fail are invoked without `command`, so their errors cannot reach the error sync. This is tracked in [Sync Layer issues](/issues/sync-layer).
+**Where it bends:** Same-flow matching works for direct causal chains. If work must survive outside that flow, use an explicit mapping concept.
 
 ## Pattern 5: Aggregate Frames Explicitly
 
@@ -134,12 +134,12 @@ Success and failure are distinguished by output shape, not by status codes or ex
 when: actions([Filing.scan, {}, { entries }])
 
 // Failure: matched by { error }
-when: actions([Filing.scan, { command }, { error }])
+when: actions([Filing.scan, {}, { error }])
 ```
 
 Because the engine matches on output shape, a success sync never accidentally fires on a failure. The two patterns are mutually exclusive.
 
-**Where it bends:** Error outputs need enough context for downstream handling. A render error without a `command` binding cannot be propagated to `Commanding.fail`.
+**Where it bends:** Error syncs still need to bind any required downstream context from the same flow or from an explicit mapping concept.
 
 ## Next
 

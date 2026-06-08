@@ -111,10 +111,7 @@ Both actions must exist in the flow for the same `entry`. If only one has fired,
 
 The review found several problems in the current syncs:
 
-- **No error gating.** `BuildCommand` fires `Building.complete`, `Filing.cleanOutput`, and `Commanding.succeed` in the same `then` list as the scans. If a scan returns `{ error }`, later actions still run. A failed build can report success.
-- **Missing command context.** Error syncs expect a `command` binding, but many pipeline actions are invoked without one. File read errors and route collisions can happen without failing the command.
-- **Registration-order sensitivity.** Collection metadata is overwritten by one sync and restored by another. Changing the sync registration order can silently drop entries from collections.
-- **Template parsing duplicated.** Both syncs and the `Layouting` concept parse the collection loop syntax independently. Adding template features requires changes in two places.
+ - **No error gating.** The build sync fires `Building.complete`, `Filing.cleanOutput`, and `Commanding.succeed` in the same `then` list as the scans. If a scan returns `{ error }`, later actions still run. A failed build can report success.
 
 These are catalogued in detail in the [Sync Layer issues](/issues/sync-layer).
 

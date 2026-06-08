@@ -304,6 +304,28 @@ describe("integration: full build", () => {
     expect(aboutContent).toContain("<!DOCTYPE html>");
   });
 
+  test("build lifecycle uses a concept-owned build id", async () => {
+    const app = await setupApp();
+    await writeFile(join(intSource, "index.md"), "# Welcome");
+
+    const result = await app.Commanding.issue({
+      name: "build",
+      args: { source: intSource, output: intOutput },
+    });
+
+    const buildRecords = [...app.Engine.Action.actions.values()].filter(
+      (record) =>
+        record.output && "build" in record.output && !("build" in record.input),
+    );
+    expect(buildRecords).toHaveLength(1);
+
+    const build = buildRecords[0].output?.build as never;
+    expect(build).not.toBe(result.command);
+
+    const [buildDoc] = await app.Building._get({ build });
+    expect(buildDoc.status).toBe("SUCCEEDED");
+  });
+
   test("builds with blog index using {{#each}}", async () => {
     const app = await setupApp();
 
@@ -446,6 +468,12 @@ describe("regression: build failures", () => {
     const [cmd] = await app.Commanding._get({ command: result.command });
     expect(cmd.status).toBe("FAILED");
     expect(cmd.error).toContain("Directory does not exist");
+
+    const scanErrors = [...app.Engine.Action.actions.values()].filter(
+      (record) => record.input.source === "content" && record.output?.error,
+    );
+    expect(scanErrors).toHaveLength(1);
+    expect(scanErrors[0].output).not.toHaveProperty("command");
   });
 
   test("missing layouts directory does NOT fail the build (layouts optional)", async () => {
@@ -526,6 +554,33 @@ describe("regression: scan-specific reads", () => {
       const doc = await app.Filing._getEntry({ entry: e.entry });
       expect(doc[0].content).toBeDefined();
     }
+  });
+});
+
+describe("regression: collection membership preservation (ISS-019)", () => {
+  test("route metadata update via Routing.derive preserves collections", async () => {
+    const app = await setupApp();
+    await writeFile(
+      join(sourceDir, "post.md"),
+      "---\ntitle: My Post\ncollections: posts\n---\nBody",
+    );
+
+    await app.Routing.configure({ stripPrefix: "pages" });
+
+    await app.Filing.scan({
+      directory: sourceDir,
+      patterns: ["**/*.md"],
+      outputDirectory: outputDir,
+      source: "content",
+    });
+
+    // Entry should still be in the posts collection after route update
+    const entries = await app.Collecting._getEntries({ collection: "posts" });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].entry).toBeDefined();
+    expect(entries[0].metadata.title).toBe("My Post");
+    // Route metadata should be merged, not replace membership
+    expect(entries[0].metadata.route).toBeDefined();
   });
 });
 

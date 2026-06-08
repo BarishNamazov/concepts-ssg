@@ -42,15 +42,10 @@ export default class RoutingConcept {
   async derive({
     entry,
     filePath,
-    command,
   }: {
     entry: ID;
     filePath: string;
-    command?: string;
-  }): Promise<
-    | { entry: ID; route: string; command?: string }
-    | { error: string; command?: string }
-  > {
+  }): Promise<{ entry: ID; route: string } | { error: string }> {
     const { stripPrefix, indexName } = this.config;
 
     let relative = filePath;
@@ -85,14 +80,13 @@ export default class RoutingConcept {
       if (existingEntry !== entry && doc.route === route) {
         return {
           error: `Route collision: "${route}" is already assigned to another entry`,
-          command,
         };
       }
     }
 
     this.entries.set(entry, { _id: entry, filePath, route });
 
-    return { entry, route, command };
+    return { entry, route };
   }
 
   async remove({

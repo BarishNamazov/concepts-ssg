@@ -54,7 +54,7 @@ This means every concept is testable in isolation. You can instantiate `RoutingC
 
 ## Where the Implementation Falls Short
 
-The code review found that several concepts carry application-specific context. `Building.start` accepts a `command` parameter for sync correlation rather than managing its own identity. `Collecting` contains logic about frontmatter fields and index pages rather than staying generic. These leaks are catalogued in the [issue review](/issues).
+The code review found that some concepts still carry application-specific context. `Watching` leaks filesystem and runtime details into a nominally generic concept, and other runtime-facing concepts blur framework and environment boundaries. These are catalogued in the [issue review](/issues).
 
 ## Next
 

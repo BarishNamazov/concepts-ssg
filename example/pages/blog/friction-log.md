@@ -18,17 +18,7 @@ A build can fail to scan, read, render, or write files — and still report succ
 
 See [Sync Layer Issues](/issues/sync-layer).
 
-## Friction 2: Command Context Leaks Into Concepts
-
-`Building`, `Filing`, `Formatting`, `Frontmattering`, `Layouting`, `Routing`, and `Publishing` all accept a `command` parameter. It exists for one reason: so error syncs can later call `Commanding.fail(command)`.
-
-This makes concepts less generic. `Formatting.render` should not need to know that some application wraps it in a command lifecycle. `Building.start` casts the command ID into its own ID space, conflating external correlation tokens with concept-owned identity.
-
-The better pattern is to keep correlation in sync frames or in a dedicated mapping concept, rather than threading it through every concept action.
-
-See [Concept Design Issues](/issues/concept-design).
-
-## Friction 3: Global State Causes Interference
+## Friction 2: Global State Causes Interference
 
 Several concepts store mutable state at module level. `Serving` keeps SSE clients in a module-level `Map` shared across all server instances. `Filing` has one output directory config for all entries. `CommandLine` mutates `process.exitCode` inside concept actions.
 
@@ -38,7 +28,7 @@ State should be scoped by instance: per-server clients, per-build output configs
 
 See [Concept Design Issues](/issues/concept-design).
 
-## Friction 4: The Engine's Evidence Model Is Too Coarse
+## Friction 3: The Engine's Evidence Model Is Too Coarse
 
 The sync engine tracks which journal records have been consumed by which sync names. But the key is just the sync name — not which specific action IDs were matched.
 
@@ -50,18 +40,7 @@ The fix is to store consumed match signatures: `sync name + ordered action IDs`,
 
 See [Engine Core Issues](/issues/engine-core).
 
-## Friction 5: Templates Are Split Across Two Layers
-
-The template feature is small — it supports component slots, custom component tags, template variable substitution, and collection iteration loops. But two different layers parse template syntax:
-
-1. **Syncs** inspect collection loop syntax to decide which collection data to fetch before layout application.
-2. **Layouting** parses the same syntax to render the loop during layout application.
-
-That means the collection loop syntax has two partial parsers that must agree. Adding a new template feature requires coordinated changes in both layers. The dual-parser problem grows with every template feature.
-
-See [Parsing Issues](/issues/parsing-validation).
-
-## Friction 6: The Filesystem Has No Guardrails
+## Friction 4: The Filesystem Has No Guardrails
 
 `Filing`, `Serving`, and `Publishing` all join path components directly. A content file with `../../etc/passwd` in its route, or a CLI invocation with `--output .`, can escape the intended root directory.
 
@@ -84,10 +63,8 @@ The friction log is a repair list, not a rejection.
 
 If you are hardening the project, start here:
 
-1. **Gate build success behind stage success.** Split build stages into success-only syncs.
-2. **Fix path safety.** Resolve and validate all filesystem paths.
-3. **Remove command correlation from concepts.** Use sync frames or a mapping concept.
-4. **Fix engine evidence tracking.** Use match signatures instead of per-sync-name consumption.
-5. **Unify template parsing.** Move all template parsing into one layer.
+ 1. **Gate build success behind stage success.** Split build stages into success-only syncs.
+ 2. **Fix path safety.** Resolve and validate all filesystem paths.
+ 3. **Fix engine evidence tracking.** Use match signatures instead of per-sync-name consumption.
 
 The full issue map starts at [Issue Review](/issues).

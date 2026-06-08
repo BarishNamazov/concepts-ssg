@@ -33,12 +33,10 @@ describe("Publishing", () => {
     expect(doc.status).toBe("STAGING");
   });
 
-  test("begin with command uses it as publication id", async () => {
-    const { publication } = await Publishing.begin({
-      destination: outputDir,
-      command: "pub-1",
-    });
-    expect(publication as string).toBe("pub-1");
+  test("begin allocates concept-owned ids", async () => {
+    const { publication } = await Publishing.begin({ destination: outputDir });
+    expect(typeof publication).toBe("string");
+    expect(publication as string).not.toBe("pub-1");
   });
 
   test("stage stores an artifact", async () => {

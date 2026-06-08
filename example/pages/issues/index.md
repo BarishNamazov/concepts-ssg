@@ -63,7 +63,7 @@ The findings cluster around four themes.
 
 | Theme | What it means |
 |---|---|
-| Concept independence | Concepts should not carry app-specific correlation or template semantics. |
+| Concept independence | Concepts should not carry app-specific template or runtime semantics. |
 | Sync gating | Success actions must not run just because they appear later in a `then` list. |
 | Engine determinism | Matching, consumption, ordering, and failure handling need sharper invariants. |
 | Filesystem boundaries | Paths must be canonicalized before serving, writing, or deleting. |

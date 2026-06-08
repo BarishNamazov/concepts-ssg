@@ -15,14 +15,6 @@ These issues are in the sync files that compose concepts into the application â€
 
 **Repair direction:** Split build stages into success-only syncs. Query that all required work succeeded before completing or cleaning. Gate cleanup on complete success.
 
-### ISS-006: Pipeline errors are not consistently command-scoped
-
-**Problem:** Error syncs expect `{ command, error }` outputs, but many pipeline actions are invoked without a `command` binding. Read, render, route, and write errors can occur without failing the command.
-
-**Why it matters:** File read errors, route collisions, and layout failures can be local failures while the build command still succeeds.
-
-**Repair direction:** Propagate command context through every pipeline action, or use an explicit build-context mapping concept.
-
 ### ISS-007: Dev startup can partially start resources
 
 **Problem:** Dev startup starts the server, watcher, and initial build in one `then` block. There is no `WaitForReadyFail` sync. Startup errors can fail the command without notifying the CLI invocation.
@@ -46,22 +38,6 @@ These issues are in the sync files that compose concepts into the application â€
 **Why it matters:** Later builds can inherit removed layouts, stale rendered HTML, or stale route collisions.
 
 **Repair direction:** Add reset actions for all build-scoped state or key records by build ID.
-
-### ISS-019: Collection metadata updates depend on sync registration order
-
-**Problem:** `RouteTriggersUpdateIndex` calls `Collecting.collect` with an empty collection list, replacing memberships. Correct metadata depends on `ParseTriggersCollect` running after to restore them.
-
-**Why it matters:** Reordering sync registration can silently remove entries from collections.
-
-**Repair direction:** Use a metadata-only update action or preserve existing collection memberships during route metadata updates.
-
-### ISS-020: Index regeneration skips layoutless collection pages
-
-**Problem:** `FinalizeTriggersIndexRegen` requires a layout before checking the body for collection loops. Layoutless index pages are dropped.
-
-**Why it matters:** A collection page builds without collection data and without an error.
-
-**Repair direction:** Make the layout query optional. Search body HTML when no layout exists. Or require layouts consistently and report a build error.
 
 ### ISS-026: Dev watches only source content
 

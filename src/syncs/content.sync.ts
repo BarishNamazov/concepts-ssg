@@ -3,7 +3,7 @@
  *
  * Filing.read (content) → Frontmattering.parse →
  * Formatting.render + Routing.derive + Collecting.collect →
- * Collecting.collect (route index update).
+ * Collecting.updateMetadata (route index update).
  */
 
 import {
@@ -80,7 +80,6 @@ export function createContentSync({
         const fieldsObj =
           (frame[fields] as Record<string, string | number | boolean>) ?? {};
         const meta: Record<string, string> = {};
-        meta._entry = String(frame[entry]);
         for (const [key, value] of Object.entries(fieldsObj)) {
           meta[key] = String(value);
         }
@@ -108,8 +107,8 @@ export function createContentSync({
         return { ...frame, [metaPayload]: { route: r } };
       }),
     then: actions([
-      Collecting.collect,
-      { entry, collections: [] as string[], metadata: metaPayload },
+      Collecting.updateMetadata,
+      { entry, metadata: metaPayload },
     ]),
   });
 

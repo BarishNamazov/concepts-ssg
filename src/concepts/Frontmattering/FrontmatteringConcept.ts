@@ -33,7 +33,7 @@ export default class FrontmatteringConcept {
   private entries = new Map<Entry, EntryDoc>();
 
   /**
-   * parse ({ entry, raw, command? }): ({ entry, command? })
+   * parse ({ entry, raw }): ({ entry })
    *
    * **requires** none
    *
@@ -44,12 +44,10 @@ export default class FrontmatteringConcept {
   async parse({
     entry,
     raw,
-    command,
   }: {
     entry: Entry;
     raw: string;
-    command?: string;
-  }): Promise<{ entry: Entry; command?: string }> {
+  }): Promise<{ entry: Entry }> {
     let frontmatter: string | null = null;
     let body: string;
 
@@ -91,7 +89,7 @@ export default class FrontmatteringConcept {
       });
     }
 
-    return { entry, command };
+    return { entry };
   }
 
   async clear(): Promise<Empty> {
