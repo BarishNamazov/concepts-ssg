@@ -1,4 +1,6 @@
+import path from "node:path";
 import { freshID } from "@utils/id.ts";
+import { safeJoin } from "@utils/path_guard.ts";
 import type { ID } from "@utils/types.ts";
 import { type Server, serve } from "bun";
 
@@ -47,6 +49,8 @@ export default class ServingConcept {
   }): Promise<{ server: ServerId } | { error: string }> {
     const id = freshID();
 
+    const resolvedRoot = path.resolve(root);
+
     const reloadScript =
       '\n<script>(function(){var s=new EventSource("/_livereload");s.onmessage=function(){location.reload()};})()</script>\n';
 
@@ -83,17 +87,22 @@ export default class ServingConcept {
           }
 
           const fsPath =
-            filePath === "/" ? `${root}/index.html` : `${root}${filePath}`;
+            filePath === "/"
+              ? safeJoin(resolvedRoot, "index.html")
+              : safeJoin(resolvedRoot, filePath.slice(1));
+
+          if (typeof fsPath !== "string") return new Response("Forbidden", { status: 403 });
 
           try {
             let file = Bun.file(fsPath);
             if (!(await file.exists())) {
-              const indexPath = `${root}${filePath}/index.html`;
+              const indexPath = safeJoin(resolvedRoot, `${filePath.slice(1)}/index.html`);
+              if (typeof indexPath !== "string") return new Response("Forbidden", { status: 403 });
               const indexFile = Bun.file(indexPath);
               if (await indexFile.exists()) {
                 file = indexFile;
               } else {
-                const fallback = Bun.file(`${root}/index.html`);
+                const fallback = Bun.file(safeJoin(resolvedRoot, "index.html") as string);
                 if (await fallback.exists()) {
                   const html = await fallback.text();
                   return new Response(html + reloadScript, {

@@ -180,6 +180,30 @@ describe("Filing", () => {
     });
   });
 
+  test("write rejects path traversal via outputRelativePath", async () => {
+    await writeFile(join(sourceDir, "page.md"), "# Page");
+
+    await Filing.scan({
+      directory: sourceDir,
+      patterns: ["**/*.md"],
+      outputDirectory: outputDir,
+      source: "test",
+    });
+
+    const all = await Filing._getAll();
+    await Filing.read({ entry: all[0].entry });
+
+    const result = await Filing.write({
+      entry: all[0].entry,
+      outputRelativePath: "../../etc/passwd",
+    });
+
+    expect("error" in result).toBe(true);
+    if ("error" in result) {
+      expect(result.error).toContain("Path traversal");
+    }
+  });
+
   test("clear removes all entries", async () => {
     await writeFile(join(sourceDir, "a.md"), "A");
     await writeFile(join(sourceDir, "b.md"), "B");

@@ -2,6 +2,7 @@ import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { freshID } from "@utils/id.ts";
 import type { ID } from "@utils/types.ts";
+import { safeJoin } from "@utils/path_guard.ts";
 
 type Publication = ID;
 type Artifact = ID;
@@ -114,7 +115,10 @@ export default class PublishingConcept {
       (a) => a.publication === publication,
     );
     const stagedPaths = new Set(
-      stagedArtifacts.map((a) => path.join(pub.destination, a.relativePath)),
+      stagedArtifacts.map((a) => {
+        const joined = safeJoin(pub.destination, a.relativePath);
+        return typeof joined === "string" ? joined : "";
+      }),
     );
 
     // Ensure destination exists
@@ -135,7 +139,11 @@ export default class PublishingConcept {
 
     // Write all staged artifacts
     for (const artifact of stagedArtifacts) {
-      const fullPath = path.join(pub.destination, artifact.relativePath);
+      const joined = safeJoin(pub.destination, artifact.relativePath);
+      if (typeof joined !== "string") {
+        return { error: `Path traversal detected: ${artifact.relativePath}` };
+      }
+      const fullPath = joined;
       const dir = path.dirname(fullPath);
       try {
         await mkdir(dir, { recursive: true });

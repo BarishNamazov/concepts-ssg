@@ -3,7 +3,7 @@ title: How Syncs Wire This Repo
 layout: Blog
 date: 2026-06-05
 collections: posts
-description: "A walkthrough of when/where/then syncs, the seven sync files, flow isolation, and where the current sync layer is brittle."
+description: "A walkthrough of when/where/then syncs, the thirteen sync files, flow isolation, and where the current sync layer is brittle."
 ---
 
 ## How Syncs Wire This Repo
@@ -32,7 +32,7 @@ The symbols `entry` and `content` are logic variables. When `when` matches a `Fi
 
 ## The Sync Files
 
-Seven sync files wire the entire build pipeline:
+Thirteen sync files compose the application. The core pipeline uses seven; the rest handle errors, runtime adapters, reporting, and asset copy.
 
 | File | What it composes |
 |---|---|
@@ -42,9 +42,13 @@ Seven sync files wire the entire build pipeline:
 | `content.sync.ts` | Read → parse frontmatter → render markdown → derive route → collect metadata |
 | `templates.sync.ts` | Layout files → layout definitions; render + route → layout application; build complete → index regeneration |
 | `publishing.sync.ts` | Layout output → file write |
-| `dev.sync.ts` | Dev command → start server → start watcher → initial build → watch events → rebuild → reload |
-
-There are also error syncs (`errors.sync.ts`, `pipeline-errors.sync.ts`) that match action outputs containing `{ error }` and propagate failures to the command lifecycle.
+| `dev.sync.ts` | Dev command → start server → start watchers → initial build → watch events → rebuild → reload |
+| `assets.sync.ts` | Public asset scan → read → write (copy) |
+| `errors.sync.ts` | Scan errors → command failure |
+| `pipeline-errors.sync.ts` | Read/write/render/layout/route errors → command failure |
+| `reporting.sync.ts` | Build complete → summary statistics |
+| `runtime-cli.sync.ts` | CommandLine state transitions → console/process effects |
+| `runtime-watch.sync.ts` | Watching state transitions → filesystem driver subscription |
 
 ## How the Build Emerges
 

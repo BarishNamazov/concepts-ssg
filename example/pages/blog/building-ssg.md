@@ -12,7 +12,7 @@ The example app is a static site generator that reads markdown pages, combines t
 
 ## The Decomposition
 
-Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each owns a narrow slice of behavior.
+Instead of one `SiteBuilder` class, the work is split across 12 concepts. Each owns a narrow slice of behavior.
 
 ### Build Lifecycle
 
@@ -46,6 +46,8 @@ Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each o
 
 **`Watching`** compares directory snapshots over time. Each `poll` action reports added, changed, and removed file paths. The concept is typed-generic over subject identity, though the current implementation leaks filesystem details.
 
+**`Publishing`** stages content artifacts and commits them to a destination directory as an atomic publication, removing stale files from prior publications. It is not currently wired into the main build pipeline (which uses `Filing` directly).
+
 ## What Each Concept Must Not Do
 
 The constraint that makes the architecture work: no concept imports another. `Formatting.render` receives a string and returns a string. It does not know that string came from `Filing.read` or that the result will feed into `Layouting.apply`.
@@ -58,4 +60,4 @@ The code review found that some concepts still carry application-specific contex
 
 ## Next
 
-Read [How Syncs Wire This Repo](/blog/syncs-in-this-repo) to see how these 11 independent concepts become one application.
+Read [How Syncs Wire This Repo](/blog/syncs-in-this-repo) to see how these 12 independent concepts become one application.

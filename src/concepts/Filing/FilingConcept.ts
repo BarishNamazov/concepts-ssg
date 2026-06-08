@@ -9,6 +9,7 @@ import {
 import path from "node:path";
 import { freshID } from "@utils/id.ts";
 import type { Empty, ID } from "@utils/types.ts";
+import { safeJoin } from "@utils/path_guard.ts";
 import { Glob } from "bun";
 
 type Entry = ID;
@@ -129,10 +130,11 @@ export default class FilingConcept {
       return { error: "No Config found — call scan first" };
     }
 
-    const outputPath = path.join(
+    const outputPath = safeJoin(
       doc.outputDirectory,
       outputRelativePath ?? doc.path,
     );
+    if (typeof outputPath !== "string") return outputPath;
     const outputDir = path.dirname(outputPath);
 
     try {
@@ -189,6 +191,8 @@ export default class FilingConcept {
       return { error: "No output directory configured" };
     }
 
+    const resolvedOutput = path.resolve(outputDirectory);
+
     const writtenPaths = new Set(
       [...this.entries.values()]
         .filter(
@@ -200,7 +204,7 @@ export default class FilingConcept {
 
     let removed = 0;
     try {
-      removed = await this.#removeStale(outputDirectory, writtenPaths);
+      removed = await this.#removeStale(resolvedOutput, writtenPaths);
     } catch (err) {
       return { error: `Failed to clean output: ${String(err)}` };
     }

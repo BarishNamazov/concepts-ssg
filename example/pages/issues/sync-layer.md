@@ -39,14 +39,6 @@ These issues are in the sync files that compose concepts into the application â€
 
 **Repair direction:** Add reset actions for all build-scoped state or key records by build ID.
 
-### ISS-026: Dev watches only source content
-
-**Problem:** Dev mode watches the source directory, but builds also depend on layouts and public assets.
-
-**Why it matters:** Editing a layout or static asset does not trigger rebuild or reload.
-
-**Repair direction:** Watch all non-empty input roots. Reuse dev command context for rebuilds.
-
 ### ISS-028: No partial rebuilds or plugin boundary
 
 **Problem:** Every change triggers a full build. Sync registration is static in `createSyncs`.

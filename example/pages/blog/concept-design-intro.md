@@ -20,7 +20,7 @@ This project builds a static site generator out of independent behavioral units 
 | Runtime | `src/runtime/` | Process adapters: CLI argument parsing and filesystem change watching. |
 | Example | `example/` | Markdown pages, HTML layouts, and public assets that exercise the generator. |
 
-## The Eleven Concepts
+## The Twelve Concepts
 
 | Concept | What it owns |
 |---|---|
@@ -35,6 +35,7 @@ This project builds a static site generator out of independent behavioral units 
 | `Collecting` | Track entry membership in named collections (e.g. "posts", "docs") |
 | `Serving` | Static HTTP server with SSE-based reload |
 | `Watching` | Compare snapshots to detect added/changed/removed files |
+| `Publishing` | Stage and commit artifact sets to a destination directory |
 
 ## How It Runs
 
@@ -45,8 +46,10 @@ bun run example:build
   → CommandLine.invoke({ argv })
   → Commanding.issue("build")
   → Building.start
+  → Filing.clear, Collecting.clear, Frontmattering.clear
+  → Routing.configure
   → Filing.scan(layouts) → Filing.scan(content) → Filing.scan(public)
-  → per-file cascade (parse → render → route → collect → layout → write)
+  → per-file cascade (parse → render | route → collect → layout → write)
   → Building.complete
   → index page regeneration
   → Filing.cleanOutput

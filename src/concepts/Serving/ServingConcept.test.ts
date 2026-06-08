@@ -207,6 +207,16 @@ describe("Serving", () => {
     expect(body).toContain("_livereload");
   });
 
+  test("rejects path traversal in URL path", async () => {
+    const port = randomPort();
+    await Serving.start({ port, root: rootDir });
+
+    const res = await fetch(
+      `http://localhost:${port}/%2e%2e%2f%2e%2e%2f%2e%2e%2fetc/passwd`,
+    );
+    expect(res.status).toBe(403);
+  });
+
   test("serves JS files with correct content-type", async () => {
     const port = randomPort();
     await writeFile(join(rootDir, "app.js"), "console.log(1);");
