@@ -20,7 +20,7 @@ This project builds a static site generator out of independent behavioral units 
 | Runtime | `src/runtime/` | Process adapters: CLI argument parsing and filesystem change watching. |
 | Example | `example/` | Markdown pages, HTML layouts, and public assets that exercise the generator. |
 
-## The Twelve Concepts
+## The Eleven Concepts
 
 | Concept | What it owns |
 |---|---|
@@ -35,7 +35,6 @@ This project builds a static site generator out of independent behavioral units 
 | `Collecting` | Track entry membership in named collections (e.g. "posts", "docs") |
 | `Serving` | Static HTTP server with SSE-based reload |
 | `Watching` | Compare snapshots to detect added/changed/removed files |
-| `Publishing` | Stage and commit artifact sets to a destination directory |
 
 ## How It Runs
 

@@ -17,8 +17,8 @@ These pages are not a changelog. They are a repair map: what can fail, why it ma
 
 <a href="/issues/concept-design" class="card" style="text-decoration: none; color: inherit; border-left: 5px solid #1f5fbf;">
 <h3>Concept Design</h3>
-<p class="meta">2 issues</p>
-<p>Concepts carrying app concerns, conflation of identity spaces, global mutable state, and Publishing non-atomicity.</p>
+<p class="meta">1 issue</p>
+<p>Concepts carrying app concerns, conflation of identity spaces, and global mutable state.</p>
 </a>
 
 <a href="/issues/sync-layer" class="card" style="text-decoration: none; color: inherit; border-left: 5px solid #ea580c;">

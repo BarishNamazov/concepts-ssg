@@ -23,7 +23,6 @@ The example app is a static-site generator decomposed into independent concepts 
 | `Routing` | Entry-to-route derivation and collision checks | File reads or template output |
 | `Layouting` | Layout definitions and composed HTML | Filesystem output or command status |
 | `Collecting` | Entry membership in named collections | Template syntax ideally |
-| `Publishing` | A publication/artifact model | Currently not the main app write path |
 | `Serving` | Static HTTP serving and reload signals | Build orchestration |
 | `Watching` | Watcher/change state | Filesystem driver details ideally |
 
@@ -38,7 +37,7 @@ The application behavior is declared in `src/syncs`.
 | `discovery.sync.ts` | Fan out scan results into per-entry reads. |
 | `content.sync.ts` | Parse frontmatter, render content, derive routes, collect metadata, and report parse notices. |
 | `templates.sync.ts` | Define layouts, apply layouts, and regenerate collection index pages. |
-| `publishing.sync.ts` | Convert composed pages into file writes. |
+| `output.sync.ts` | Convert composed pages into file writes. |
 | `assets.sync.ts` | Copy public entries through the file path. This is currently text-oriented and needs binary-safe handling. |
 | `errors.sync.ts` | Fail commands on scan errors. |
 | `pipeline-errors.sync.ts` | Attempt to fail commands on later pipeline errors. The review found command-context gaps here. |

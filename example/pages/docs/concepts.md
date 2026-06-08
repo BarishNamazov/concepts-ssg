@@ -76,4 +76,4 @@ A concept must never import another concept. It treats external identities (like
 
 ### State Design
 
-State components that can evolve independently are a warning that multiple concerns have been combined. For example, a `Filing` concept that manages file discovery, content mutation, output configuration, AND publication is doing too much. Split it into `Discovering`, `Reading`, and `Publishing`.
+State components that can evolve independently are a warning that multiple concerns have been combined. For example, a `Filing` concept that manages file discovery, content mutation, output configuration, AND publication is doing too much. Split it into `Discovering` and `Reading`.

@@ -1,5 +1,5 @@
 /**
- * Publishing syncs.
+ * Output syncs.
  *
  * Layouting.apply → Filing.setContent + Filing.write.
  */
@@ -17,7 +17,7 @@ type C = {
   Routing: typeof _Routing;
 };
 
-export function createPublishingSync({ Filing, Layouting, Routing }: C) {
+export function createOutputSync({ Filing, Layouting, Routing }: C) {
   const ApplyTriggersWrite: Sync = ({
     entry,
     composed,
@@ -48,7 +48,7 @@ export function createPublishingSync({ Filing, Layouting, Routing }: C) {
   return { ApplyTriggersWrite };
 }
 
-const defaultSyncs = createPublishingSync({
+const defaultSyncs = createOutputSync({
   Filing: _Filing,
   Layouting: _Layouting,
   Routing: _Routing,

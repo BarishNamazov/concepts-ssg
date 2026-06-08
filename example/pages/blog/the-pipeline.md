@@ -104,7 +104,7 @@ then: actions([Layouting.apply, { entry }])
 
 ## Stage 6: Writing Output
 
-`publishing.sync.ts` matches `Layouting.apply` and fires `Filing.write`:
+`output.sync.ts` matches `Layouting.apply` and fires `Filing.write`:
 
 ```ts
 then: actions([Filing.write, {

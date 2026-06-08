@@ -32,7 +32,7 @@ See [Engine Core Issues](/issues/engine-core).
 
 ## Friction 3: The Filesystem Has No Guardrails
 
-`Filing`, `Serving`, and `Publishing` all join path components directly. A content file with `../../etc/passwd` in its route, or a CLI invocation with `--output .`, can escape the intended root directory.
+`Filing` and `Serving` both join path components directly. A content file with `../../etc/passwd` in its route, or a CLI invocation with `--output .`, can escape the intended root directory.
 
 This is a demo with trusted inputs, so the risk is theoretical. But the fix is not concept-specific — it requires path resolution, escape detection, and output root validation in every concept that touches the filesystem.
 

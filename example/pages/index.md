@@ -49,7 +49,7 @@ The generator turns markdown, HTML layouts, and public assets into a static site
 
 <div class="card">
 <h3>Presentation Layer</h3>
-<p class="meta">Layouting, Collecting, Publishing</p>
+<p class="meta">Layouting, Collecting</p>
 <p>Layouts wrap content, collections feed index pages, and final output is written to disk.</p>
 </div>
 

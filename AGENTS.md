@@ -36,7 +36,6 @@ src/
 │   ├── Formatting/    # Markdown-to-HTML rendering
 │   ├── Frontmattering/ # YAML frontmatter + body split
 │   ├── Layouting/     # HTML layout definitions and application
-│   ├── Publishing/    # Staged artifact commits
 │   ├── Routing/       # File path → clean URL, collision detection
 │   ├── Serving/       # Dev-mode HTTP server with SSE reload
 │   └── Watching/      # Directory snapshot comparison
@@ -47,7 +46,7 @@ src/
 │   ├── discovery.sync.ts  # Scan results → per-entry reads (fan-out)
 │   ├── content.sync.ts    # Read → parse → render → route → collect
 │   ├── templates.sync.ts  # Layout define/apply + index regeneration
-│   ├── publishing.sync.ts # Layout output → file writes
+│   ├── output.sync.ts   # Layout output → file writes
 │   ├── assets.sync.ts     # Public asset copy
 │   ├── dev.sync.ts        # Dev server + watcher + rebuild + reload
 │   ├── errors.sync.ts     # Scan error → command fail

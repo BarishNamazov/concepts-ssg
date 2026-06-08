@@ -16,7 +16,7 @@ import { createDevSyncs } from "./dev.sync";
 import { createDiscoverySync } from "./discovery.sync";
 import { createErrorsSync } from "./errors.sync";
 import { createPipelineErrorSyncs } from "./pipeline-errors.sync";
-import { createPublishingSync } from "./publishing.sync";
+import { createOutputSync } from "./output.sync";
 import { createReportingSyncs } from "./reporting.sync";
 import { createTemplatesSync } from "./templates.sync";
 
@@ -27,7 +27,7 @@ export function createSyncs(concepts: AppConcepts) {
     ...createDiscoverySync(concepts),
     ...createContentSync(concepts),
     ...createTemplatesSync(concepts),
-    ...createPublishingSync(concepts),
+    ...createOutputSync(concepts),
     ...createErrorsSync(concepts),
     ...createPipelineErrorSyncs(concepts),
     ...createAssetsSync(concepts),
@@ -47,7 +47,6 @@ import {
   Formatting,
   Frontmattering,
   Layouting,
-  Publishing,
   Routing,
   Watching,
 } from "@concepts";
@@ -61,7 +60,6 @@ const defaultSyncs = createSyncs({
   Formatting,
   Frontmattering,
   Layouting,
-  Publishing,
   Routing,
   Serving: _Serving,
   Watching,

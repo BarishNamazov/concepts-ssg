@@ -2,7 +2,7 @@
 
 A **static site generator** built as a demonstration of concept design: independent behavioral units are implemented as **concepts** and composed by declarative **synchronizations**. The example site you can build documents the architecture from the inside.
 
-The point is not the SSG. The point is the decomposition — 12 independent concepts wired by syncs into a build pipeline, with no concept importing another. The project also publishes a code review log (`ISSUES.md`) cataloguing where the implementation still bends.
+The point is not the SSG. The point is the decomposition — 11 independent concepts wired by syncs into a build pipeline, with no concept importing another. The project also publishes a code review log (`ISSUES.md`) cataloguing where the implementation still bends.
 
 ## Concepts at a Glance
 
@@ -17,7 +17,6 @@ The point is not the SSG. The point is the decomposition — 12 independent conc
 | `Routing` | File path to clean URL, collision detection |
 | `Layouting` | HTML layout definitions and variable substitution |
 | `Collecting` | Entry membership in named collections |
-| `Publishing` | Staged artifact commits |
 | `Serving` | Dev-mode static HTTP server with SSE reload |
 | `Watching` | Directory snapshot comparison for change detection |
 
@@ -63,7 +62,6 @@ src/
 │   ├── Formatting/
 │   ├── Frontmattering/
 │   ├── Layouting/
-│   ├── Publishing/
 │   ├── Routing/
 │   ├── Serving/
 │   └── Watching/
@@ -74,7 +72,7 @@ src/
 │   ├── discovery.sync.ts  # Scan arrays → per-entry reads
 │   ├── content.sync.ts    # Read → parse → render → route → collect
 │   ├── templates.sync.ts  # Layout definitions, application, index regen
-│   ├── publishing.sync.ts # Layout output → file writes
+│   ├── output.sync.ts     # Layout output → file writes
 │   ├── assets.sync.ts     # Public file copying
 │   ├── dev.sync.ts        # Dev server, watcher, rebuild, reload
 │   ├── errors.sync.ts     # Scan error → command failure

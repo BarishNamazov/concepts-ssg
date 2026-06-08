@@ -15,14 +15,6 @@ These issues are about concepts that carry application-specific concerns, confla
 
 **Repair direction:** Scope config per build. Clear or rederive routes on config change. Normalize paths before prefix stripping.
 
-### ISS-005: Publishing commit is destructive and non-atomic
-
-**Problem:** `Publishing.commit` removes stale files before all staged artifacts are written. A write failure leaves the destination partially mutated with the publication stuck in staging.
-
-**Why it matters:** Partial publications can be corrupt. Concurrent commits to the same destination can interleave.
-
-**Repair direction:** Write to a temp directory, validate all artifacts, then atomically promote the complete result. Add a per-destination lock.
-
 ## Related
 
 - [Sync Layer Issues](/issues/sync-layer) — pipeline gating and error propagation

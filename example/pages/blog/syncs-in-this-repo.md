@@ -41,7 +41,7 @@ Thirteen sync files compose the application. The core pipeline uses seven; the r
 | `discovery.sync.ts` | Scan result arrays → fan out → one read action per entry |
 | `content.sync.ts` | Read → parse frontmatter → render markdown → derive route → collect metadata |
 | `templates.sync.ts` | Layout files → layout definitions; render + route → layout application; build complete → index regeneration |
-| `publishing.sync.ts` | Layout output → file write |
+| `output.sync.ts` | Layout output → file write |
 | `dev.sync.ts` | Dev command → start server → start watchers → initial build → watch events → rebuild → reload |
 | `assets.sync.ts` | Public asset scan → read → write (copy) |
 | `errors.sync.ts` | Scan errors → command failure |
@@ -72,7 +72,7 @@ CommandLine.invoke         // user runs the CLI
   → Filing.read            // discovery.sync.ts
   → Building.complete      // build.sync.ts — barrier: index regen waits
   → Layouting.apply        // templates.sync.ts joins render + route
-  → Filing.write           // publishing.sync.ts matches layout applications
+  → Filing.write           // output.sync.ts matches layout applications
   → Filing.cleanOutput     // build.sync.ts
   → Commanding.succeed     // build.sync.ts
   → CommandLine.succeed    // cli.sync.ts
