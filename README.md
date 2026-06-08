@@ -30,6 +30,8 @@ bun run example:dev        # dev server with live reload
 - `src/engine/` — journal, frame matching, sync runner
 - `example/` — the canonical documentation site (also the build fixture)
 
+To use the SSG for your own site, read the [building a site guide](docs/building-a-site.md).
+
 Build the example site to read the full docs — including the field guide, architecture walkthrough, design rules, app specification, and issue review.
 
 ## License
