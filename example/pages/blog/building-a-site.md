@@ -1,4 +1,12 @@
-# Building a Site
+---
+title: How to Build a Site
+layout: Blog
+date: 2026-06-08
+collections: posts
+description: "A step-by-step guide to creating a static site — directory structure, frontmatter, layouts, collections, and the dev loop."
+---
+
+## How to Build a Site
 
 This guide walks through creating a static site with the SSG. The
 [example site](../example/) is the best reference — it is built by the
