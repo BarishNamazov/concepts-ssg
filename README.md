@@ -1,70 +1,117 @@
-# Concept-Design Application Template
+# Concept Design Framework
 
-A **concept-design** application template running on [Bun](https://bun.sh) with MongoDB for persistence. Functionality is decomposed into independent, reusable **concepts** composed with declarative **synchronizations**.
+A **static site generator** built as a demonstration of concept design: independent behavioral units are implemented as **concepts** and composed by declarative **synchronizations**. The example site you can build documents the architecture from the inside.
 
-This template provides authentication, user profiles, and role-based authorization out of the box. Use it as a starting point for building any web application.
+The point is not the SSG. The point is the decomposition — 12 independent concepts wired by syncs into a build pipeline, with no concept importing another. The project also publishes a code review log (`ISSUES.md`) cataloguing where the implementation still bends.
 
-> Read the [concept-design overview](design/background/concept-design-overview.md) to understand the methodology. The runnable application lives under `src/`. A Next.js frontend lives under `frontend/`.
+## Concepts at a Glance
+
+| Concept | Owns |
+|---|---|
+| `CommandLine` | CLI invocation lifecycle, notices, terminal result |
+| `Commanding` | Generic command issue/succeed/fail lifecycle |
+| `Building` | Build status (running, done) |
+| `Filing` | File entries: scan, read, write, cleanup |
+| `Frontmattering` | Split YAML frontmatter from markdown body |
+| `Formatting` | Markdown-to-HTML rendering |
+| `Routing` | File path to clean URL, collision detection |
+| `Layouting` | HTML layout definitions and variable substitution |
+| `Collecting` | Entry membership in named collections |
+| `Publishing` | Staged artifact commits |
+| `Serving` | Dev-mode static HTTP server with SSE reload |
+| `Watching` | Directory snapshot comparison for change detection |
+
+## Build the Example Site
+
+```bash
+bun install
+bun run example:build      # build example/dist
+bun run example:dev        # dev server with live reload
+```
+
+The example site lives under `example/`. Content is in `example/pages/` (markdown), layouts in `example/layouts/` (HTML templates), and static assets in `example/public/`. Built output goes to `example/dist/`.
 
 ## Setup
 
 1. Install [Bun](https://bun.sh): `curl -fsSL https://bun.sh/install | bash`
 2. Install dependencies: `bun install`
-3. Copy `.env.template` to `.env` and fill in your MongoDB configuration:
-   - `MONGODB_URL`: the MongoDB connection string (use `memory` for in-memory dev)
-   - `DB_NAME`: the database name
-   - `PORT` (optional): the port the server binds to, default `8000`
-4. Start the server: `bun run start`
+3. Build the example: `bun run example:build`
+
+No database needed. Concepts store state in memory (TypeScript `Map` instances).
 
 ## Scripts
 
 | Command | Description |
-| --- | --- |
-| `bun run start` | Starts the application server (`src/main.ts`). |
-| `bun test` | Runs the test suite. |
-| `bun run typecheck` | Type-checks the project with `tsc --noEmit`. |
-| `bun run format` | Formats code with biome. |
-| `bun run check` | Lints and checks code with biome. |
+|---|---|
+| `bun run example:build` | Build the example site |
+| `bun run example:dev` | Build and serve with live reload |
+| `bun test` | Run the test suite (in-memory, no external deps) |
+| `bun run typecheck` | Type-check with `tsc --noEmit` |
+| `bun run check` | Lint and format check with biome |
 
 ## Architecture
 
-Read [design/background/architecture.md](design/background/architecture.md) for the full picture. In short:
-
 ```
 src/
-├── concepts/       ← Concept implementations (one folder per concept)
-│   ├── concepts.ts ← Registry + singleton instances
-│   ├── Authenticating/
-│   ├── Profiling/
-│   ├── Requesting/  (provided: turns HTTP requests into concept actions)
-│   ├── Roling/
-│   └── Sessioning/
-├── syncs/          ← Synchronizations (`*.sync.ts`)
-├── engine/         ← The concept + synchronization engine (framework)
-├── utils/          ← Database + helpers
-├── sdk/            ← Type-safe client SDK for a frontend
-└── main.ts         ← Entry point
+├── concepts/          # Independent concept implementations (one folder per concept)
+│   ├── concepts.ts    # Registry and createConcepts factory
+│   ├── Building/
+│   ├── Collecting/
+│   ├── Commanding/
+│   ├── CommandLine/
+│   ├── Filing/
+│   ├── Formatting/
+│   ├── Frontmattering/
+│   ├── Layouting/
+│   ├── Publishing/
+│   ├── Routing/
+│   ├── Serving/
+│   └── Watching/
+├── syncs/             # Synchronizations that compose concepts (*.sync.ts)
+│   ├── app.ts         # Root composition via createSyncs
+│   ├── cli.sync.ts    # CLI invocation → command lifecycle
+│   ├── build.sync.ts  # Build start → scans → complete → clean → succeed
+│   ├── discovery.sync.ts  # Scan arrays → per-entry reads
+│   ├── content.sync.ts    # Read → parse → render → route → collect
+│   ├── templates.sync.ts  # Layout definitions, application, index regen
+│   ├── publishing.sync.ts # Layout output → file writes
+│   ├── assets.sync.ts     # Public file copying
+│   ├── dev.sync.ts        # Dev server, watcher, rebuild, reload
+│   ├── errors.sync.ts     # Scan error → command failure
+│   ├── pipeline-errors.sync.ts  # Pipeline error → command failure
+│   └── reporting.sync.ts  # Build stats summary
+├── engine/            # Journal, frame matching, sync runner
+├── runtime/           # CLI argument parsing, filesystem watch driver
+├── utils/             # ID generation, snapshots, types
+└── main.ts            # Entry point
 ```
 
-- **Concepts** are self-contained TypeScript classes that own their state (MongoDB collections) and expose **actions** (state mutators) and **queries** (methods prefixed with `_`). A concept never imports another concept.
-- **Synchronizations** are declarative rules of the form *when … where … then …* that compose concepts. See [implementing-synchronizations.md](design/background/implementing-synchronizations.md).
-- **Requesting** is the bootstrap concept that turns incoming HTTP requests into `Requesting.request` actions. See its [README](src/concepts/Requesting/README.md).
+- **Concepts** are self-contained TypeScript classes that own their state (in-memory maps) and expose **actions** (state mutators) and **queries** (methods returning arrays). A concept never imports another concept.
+- **Synchronizations** are declarative rules of the form *when … where … then …* that compose concepts. See `design/background/implementing-synchronizations.md`.
+- **The engine** drives everything: it journals actions, matches sync patterns, manages frames, and fires follow-up actions within a causal flow.
 
-## Adding Features
+## Reading the Project
 
-1. Write the concept spec (name, purpose, principle, state, actions, queries).
-2. Implement it at `src/concepts/{Name}/{Name}Concept.ts`, with a colocated `{Name}Concept.test.ts`.
-3. Wire it up with synchronizations under `src/syncs/`.
-4. Register the concept in `src/concepts/concepts.ts` (both `conceptClasses` and the named export).
-5. Wire endpoints into `src/syncs/app.ts`.
-6. Run `bun test`, `bun run typecheck`, `bun run check`.
+Read the example site (build it first) or the source directly:
 
-The design rules live under `design/background/` — read them in order. The `AGENTS.md` and `CLAUDE.md` files at the repo root provide full LLM agent instructions.
+- [Blog: This Repo in One Pass](example/pages/blog/concept-design-intro.md) — orientation tour
+- [Blog: How Syncs Wire This Repo](example/pages/blog/syncs-in-this-repo.md) — the composition layer
+- [Blog: The Build Pipeline](example/pages/blog/the-pipeline.md) — full execution sequence
+- [Blog: Friction Log](example/pages/blog/friction-log.md) — where the model bends
+- [ISSUES.md](ISSUES.md) — code review findings organized by layer
+- [Design docs](design/background/) — background on concept-design methodology
 
-## Frontend
+## Design Rules
 
-The `frontend/` directory contains a Next.js 16 app with shadcn/ui, auth pages, profile settings, and a typed SDK client wired to the backend API contract. See `frontend/AGENTS.md` for frontend-specific agent instructions.
+Read these in order before contributing:
 
-## SDK
+1. `design/background/concept-design-overview.md` — what concepts are, independence, composition by synchronization
+2. `design/background/concept-specifications.md` — how to write a concept spec
+3. `design/background/architecture.md` — directory structure, initialization flow
+4. `design/background/implementing-concepts.md` — TypeScript implementation conventions
+5. `design/background/implementing-synchronizations.md` — sync DSL, when/where/then, frames, queries
+6. `design/background/testing-concepts.md` — testing methodology
 
-A self-contained typed client SDK lives under `src/sdk/`. The API contract is inferred from the sync composition in `src/syncs/app.ts` and passed to `createClient<AppApi>()`, giving a frontend end-to-end type safety without code generation. See [src/sdk/README.md](src/sdk/README.md).
+## License
+
+MIT
