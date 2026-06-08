@@ -8,11 +8,13 @@
 
 import { createConcepts } from "@concepts";
 import { createSyncs } from "@syncs";
+import { CommandLineRuntimeAdapter } from "./runtime/command_line_runtime_adapter.ts";
 import {
   FilesystemWatchAdapter,
   type WatchingRuntimeActions,
 } from "./runtime/filesystem_watch_adapter.ts";
 import { createFilesystemWatchDriver } from "./runtime/filesystem_watch_driver.ts";
+import { createRuntimeCliSyncs } from "./syncs/runtime-cli.sync.ts";
 import { createRuntimeWatchSyncs } from "./syncs/runtime-watch.sync.ts";
 
 export function createApp() {
@@ -27,6 +29,16 @@ export function createApp() {
   const WatchRuntime = app.Engine.instrumentConcept(
     new FilesystemWatchAdapter(driver, Watching, 150),
   );
+  const CommandLineRuntime = app.Engine.instrumentConcept(
+    new CommandLineRuntimeAdapter(),
+  );
+
+  app.Engine.register(
+    createRuntimeCliSyncs({
+      CommandLine: app.CommandLine,
+      CommandLineRuntime,
+    }),
+  );
 
   app.Engine.register(
     createRuntimeWatchSyncs({ Watching: app.Watching, WatchRuntime }),
@@ -35,5 +47,5 @@ export function createApp() {
   const syncs = createSyncs(app);
   app.Engine.register(syncs);
 
-  return { ...app, WatchRuntime };
+  return { ...app, WatchRuntime, CommandLineRuntime };
 }

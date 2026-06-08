@@ -200,7 +200,7 @@ describe("Filing", () => {
     expect(all).toHaveLength(0);
   });
 
-  test("_getEntry returns computed outputPath when config exists", async () => {
+  test("_getEntry returns outputPath from the entry's output directory", async () => {
     await writeFile(join(sourceDir, "entry.md"), "entry content");
 
     await Filing.scan({
@@ -218,6 +218,43 @@ describe("Filing", () => {
     expect(entryDoc[0].extension).toBe("md");
     expect(entryDoc[0].outputPath).toBe(join(outputDir, "entry.md"));
     expect(entryDoc[0].written).toBe(false);
+  });
+
+  test("entries retain output directory after a later scan uses another output", async () => {
+    await writeFile(join(sourceDir, "first.md"), "first");
+
+    await Filing.scan({
+      directory: sourceDir,
+      patterns: ["first.md"],
+      outputDirectory: outputDir,
+      source: "first",
+    });
+
+    const [firstEntry] = await Filing._getAll();
+    await Filing.read({ entry: firstEntry.entry });
+
+    const secondSource = join(tempDir, "src2");
+    const secondOutput = join(tempDir, "out2");
+    await mkdir(secondSource, { recursive: true });
+    await mkdir(secondOutput, { recursive: true });
+    await writeFile(join(secondSource, "second.md"), "second");
+
+    await Filing.scan({
+      directory: secondSource,
+      patterns: ["second.md"],
+      outputDirectory: secondOutput,
+      source: "second",
+    });
+
+    const result = await Filing.write({ entry: firstEntry.entry });
+    expect(result).toEqual({
+      entry: firstEntry.entry,
+      outputPath: join(outputDir, "first.md"),
+    });
+
+    const [doc] = await Filing._getEntry({ entry: firstEntry.entry });
+    expect(doc.outputPath).toBe(join(outputDir, "first.md"));
+    expect(doc.outputDirectory).toBe(outputDir);
   });
 
   test("_getEntry returns empty array for nonexistent entry", async () => {

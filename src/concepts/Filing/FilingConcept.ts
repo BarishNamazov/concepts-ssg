@@ -18,6 +18,7 @@ interface EntryDoc {
   path: string;
   extension: string;
   root: string;
+  outputDirectory: string;
   content?: string;
   written: boolean;
   /** The full output path this entry was last written to. */
@@ -31,11 +32,6 @@ function extensionOf(filePath: string): string {
 
 export default class FilingConcept {
   private entries = new Map<Entry, EntryDoc>();
-  private config: { outputDirectory: string } = { outputDirectory: "" };
-
-  constructor(namespace?: string) {
-    void namespace;
-  }
 
   async scan({
     directory,
@@ -49,7 +45,6 @@ export default class FilingConcept {
     source: string;
   }): Promise<{ source: string; entries: Entry[] } | { error: string }> {
     if (directory === "") {
-      this.config = { outputDirectory };
       return { source, entries: [] };
     }
 
@@ -79,6 +74,7 @@ export default class FilingConcept {
           path: relativePath,
           extension: ext,
           root: directory,
+          outputDirectory,
           written: false,
           source,
         });
@@ -90,9 +86,6 @@ export default class FilingConcept {
       this.entries.set(doc._id, doc);
       entryIds.push(doc._id);
     }
-
-    this.config = { outputDirectory };
-
     return { source, entries: entryIds };
   }
 
@@ -132,12 +125,12 @@ export default class FilingConcept {
     if (doc.content === undefined) {
       return { error: `Entry has no content — call read first: ${entry}` };
     }
-    if (this.config.outputDirectory === "") {
+    if (doc.outputDirectory === "") {
       return { error: "No Config found — call scan first" };
     }
 
     const outputPath = path.join(
-      this.config.outputDirectory,
+      doc.outputDirectory,
       outputRelativePath ?? doc.path,
     );
     const outputDir = path.dirname(outputPath);
@@ -180,30 +173,34 @@ export default class FilingConcept {
   }
 
   /**
-   * cleanOutput (): ({ removed }) | ({ error })
+   * cleanOutput ({ outputDirectory }): ({ removed }) | ({ error })
    *
-   * **requires** output directory is configured
+   * **requires** `outputDirectory` is provided
    *
    * **effects** recursively walks the output directory and removes any file
-   *   whose relative path does not match an entry with `written: true`
+   *   whose path does not match an entry written to that output directory
    */
-  async cleanOutput(): Promise<{ removed: number } | { error: string }> {
-    if (this.config.outputDirectory === "") {
+  async cleanOutput({
+    outputDirectory,
+  }: {
+    outputDirectory: string;
+  }): Promise<{ removed: number } | { error: string }> {
+    if (outputDirectory === "") {
       return { error: "No output directory configured" };
     }
 
     const writtenPaths = new Set(
       [...this.entries.values()]
-        .filter((e) => e.written && e.outputPath)
+        .filter(
+          (e) =>
+            e.outputDirectory === outputDirectory && e.written && e.outputPath,
+        )
         .map((e) => e.outputPath ?? ""),
     );
 
     let removed = 0;
     try {
-      removed = await this.#removeStale(
-        this.config.outputDirectory,
-        writtenPaths,
-      );
+      removed = await this.#removeStale(outputDirectory, writtenPaths);
     } catch (err) {
       return { error: `Failed to clean output: ${String(err)}` };
     }
@@ -216,6 +213,7 @@ export default class FilingConcept {
       path: string;
       extension: string;
       root: string;
+      outputDirectory: string;
       content?: string;
       outputPath?: string;
       written: boolean;
@@ -226,15 +224,17 @@ export default class FilingConcept {
     if (doc === undefined) return [];
 
     const outputPath =
-      this.config.outputDirectory !== ""
-        ? path.join(this.config.outputDirectory, doc.path)
-        : undefined;
+      doc.outputPath ??
+      (doc.outputDirectory !== ""
+        ? path.join(doc.outputDirectory, doc.path)
+        : undefined);
 
     return [
       {
         path: doc.path,
         extension: doc.extension,
         root: doc.root,
+        outputDirectory: doc.outputDirectory,
         content: doc.content,
         outputPath,
         written: doc.written,
@@ -293,8 +293,14 @@ export default class FilingConcept {
   }
 
   async _getConfig(): Promise<{ outputDirectory: string }[]> {
-    if (this.config.outputDirectory === "") return [];
-    return [{ outputDirectory: this.config.outputDirectory }];
+    const outputDirectories = new Set(
+      [...this.entries.values()]
+        .map((doc) => doc.outputDirectory)
+        .filter((outputDirectory) => outputDirectory !== ""),
+    );
+    return [...outputDirectories].map((outputDirectory) => ({
+      outputDirectory,
+    }));
   }
 
   /** Recursively remove files in `dir` that are not in `keep` set. */

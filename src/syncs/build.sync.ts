@@ -98,7 +98,7 @@ export function createBuildSync({
         },
       ],
       [Building.complete, { build }],
-      [Filing.cleanOutput, {}],
+      [Filing.cleanOutput, { outputDirectory: output }],
       [Commanding.succeed, { command }],
     ),
   });

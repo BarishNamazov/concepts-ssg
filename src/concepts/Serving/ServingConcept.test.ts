@@ -121,6 +121,7 @@ describe("Serving", () => {
     await new Promise((r) => setTimeout(r, 100));
 
     const result = await Serving.reload();
+    if ("error" in result) throw new Error(result.error);
     expect(result.reloaded).toBeGreaterThanOrEqual(0);
   });
 
@@ -150,7 +151,47 @@ describe("Serving", () => {
     const port = randomPort();
     await Serving.start({ port, root: rootDir });
     const result = await Serving.reload();
+    if ("error" in result) throw new Error(result.error);
     expect(result.reloaded).toBe(0);
+  });
+
+  test("reload can target one server without counting another server's clients", async () => {
+    const otherRoot = join(tempDir, "other-out");
+    await mkdir(otherRoot, { recursive: true });
+    await writeFile(join(rootDir, "index.html"), "<h1>One</h1>");
+    await writeFile(join(otherRoot, "index.html"), "<h1>Two</h1>");
+
+    const portA = randomPort();
+    const portB = randomPort();
+    const startedA = await Serving.start({ port: portA, root: rootDir });
+    const startedB = await Serving.start({ port: portB, root: otherRoot });
+    if ("error" in startedA) throw new Error(startedA.error);
+    if ("error" in startedB) throw new Error(startedB.error);
+
+    const abortA = new AbortController();
+    const abortB = new AbortController();
+    void fetch(`http://localhost:${portA}/_livereload`, {
+      signal: abortA.signal,
+    }).catch(() => {});
+    void fetch(`http://localhost:${portB}/_livereload`, {
+      signal: abortB.signal,
+    }).catch(() => {});
+
+    await new Promise((r) => setTimeout(r, 100));
+
+    const resultA = await Serving.reload({ server: startedA.server });
+    if ("error" in resultA) throw new Error(resultA.error);
+    expect(resultA.reloaded).toBe(1);
+
+    await Serving.stop({ server: startedA.server });
+
+    const resultB = await Serving.reload({ server: startedB.server });
+    if ("error" in resultB) throw new Error(resultB.error);
+    expect(resultB.reloaded).toBe(1);
+
+    abortA.abort();
+    abortB.abort();
+    await Serving.stop({ server: startedB.server });
   });
 
   test("serves nested HTML files with injection", async () => {
@@ -201,6 +242,7 @@ describe("Serving", () => {
 
     // Reload
     const reload = await Serving.reload();
+    if ("error" in reload) throw new Error(reload.error);
     expect(reload.reloaded).toBe(0); // no clients connected
 
     // Stop

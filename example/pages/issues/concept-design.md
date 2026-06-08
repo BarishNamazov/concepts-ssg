@@ -7,22 +7,6 @@ layout: Blog
 
 These issues are about concepts that carry application-specific concerns, conflate identity spaces, or store state at the wrong scope. Each one makes a concept less independent and harder to reuse.
 
-### ISS-012: Watching knows too much about filesystem/runtime
-
-**Problem:** `Watching` is nominally generic over `Subject`, but casts subjects to strings for a filesystem driver and stores a sync-engine callback. Timer callbacks do not check active status before emitting.
-
-**Why it matters:** Stopped watchers can still trigger rebuilds. Platform-specific watch failures bypass structured error handling. The concept is coupled to both the runtime and the engine.
-
-**Repair direction:** Move driver subscription and engine emission to a runtime adapter. Keep `Watching` as pure snapshot comparison. Guard polls by active status.
-
-### ISS-013: Global mutable state causes cross-instance interference
-
-**Problem:** `Serving` stores SSE clients in a module-level `Map` shared across all instances. `Filing` has one output directory for all entries. `CommandLine` mutates `process.exitCode` inline.
-
-**Why it matters:** Stopping one server disconnects all clients. Rebuilds can write entries with another build's output config. Tests become order-dependent.
-
-**Repair direction:** Scope state by instance ID. Per-server clients, per-build output configs, per-entry write targets. Move process effects to a runtime adapter.
-
 ### ISS-016: Layouting conflates layout names, layout IDs, and entry IDs
 
 **Problem:** `define` uses the layout name as a layout ID. `compose` stores composed layouts in the same `entries` map as entry compositions. Human names become identity keys.

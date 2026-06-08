@@ -24,7 +24,7 @@ interface InvocationDoc {
  * **principle** after a caller invokes the CLI with arguments, the invocation
  *   is created in PENDING status; when the associated operation completes the
  *   invocation transitions to SUCCEEDED, and when it fails the invocation
- *   transitions to FAILED with the error and optional usage printed
+ *   transitions to FAILED with the error and optional usage stored
  *
  * **state**
  *   a set of Invocations with
@@ -95,7 +95,7 @@ export default class CommandLineConcept {
    *
    * **requires** `invocation` exists and is not already SUCCEEDED or FAILED
    *
-   * **effects** marks the invocation as READY and prints a message to stdout
+   * **effects** marks the invocation as READY and stores an optional message
    */
   async ready({
     invocation,
@@ -103,7 +103,7 @@ export default class CommandLineConcept {
   }: {
     invocation: Invocation;
     message?: string;
-  }): Promise<{ invocation: Invocation } | { error: string }> {
+  }): Promise<{ invocation: Invocation; message: string } | { error: string }> {
     const doc = this.invocations.get(invocation);
     if (!doc) return { error: `Invocation not found: ${invocation}` };
     if (doc.status === "SUCCEEDED" || doc.status === "FAILED") {
@@ -111,8 +111,7 @@ export default class CommandLineConcept {
     }
     doc.status = "READY";
     if (message) doc.message = message;
-    if (message) console.log(message);
-    return { invocation };
+    return { invocation, message: message ?? "" };
   }
 
   /**
@@ -120,8 +119,7 @@ export default class CommandLineConcept {
    *
    * **requires** `invocation` exists
    *
-   * **effects** prints a message at the given level (info by default) and
-   *   stores it on the invocation; does not change status
+   * **effects** stores a message on the invocation; does not change status
    */
   async notice({
     invocation,
@@ -131,16 +129,14 @@ export default class CommandLineConcept {
     invocation: Invocation;
     message: string;
     level?: string;
-  }): Promise<{ invocation: Invocation } | { error: string }> {
+  }): Promise<
+    | { invocation: Invocation; message: string; level: string }
+    | { error: string }
+  > {
     const doc = this.invocations.get(invocation);
     if (!doc) return { error: `Invocation not found: ${invocation}` };
     doc.message = message;
-    if (level === "error") {
-      console.error(message);
-    } else {
-      console.log(message);
-    }
-    return { invocation };
+    return { invocation, message, level: level ?? "info" };
   }
 
   /**
@@ -148,8 +144,8 @@ export default class CommandLineConcept {
    *
    * **requires** `invocation` exists and is not already SUCCEEDED or FAILED
    *
-   * **effects** marks the invocation as SUCCEEDED, prints a message to stdout,
-   *   and sets process.exitCode to 0
+   * **effects** marks the invocation as SUCCEEDED and stores an optional
+   *   message
    */
   async succeed({
     invocation,
@@ -157,7 +153,7 @@ export default class CommandLineConcept {
   }: {
     invocation: Invocation;
     message?: string;
-  }): Promise<{ invocation: Invocation } | { error: string }> {
+  }): Promise<{ invocation: Invocation; message: string } | { error: string }> {
     const doc = this.invocations.get(invocation);
     if (!doc) return { error: `Invocation not found: ${invocation}` };
     if (doc.status === "SUCCEEDED" || doc.status === "FAILED") {
@@ -165,9 +161,7 @@ export default class CommandLineConcept {
     }
     doc.status = "SUCCEEDED";
     if (message) doc.message = message;
-    if (message) console.log(message);
-    process.exitCode = 0;
-    return { invocation };
+    return { invocation, message: message ?? "" };
   }
 
   /**
@@ -175,8 +169,7 @@ export default class CommandLineConcept {
    *
    * **requires** `invocation` exists and is not already SUCCEEDED or FAILED
    *
-   * **effects** marks the invocation as FAILED, prints usage and error to
-   *   stderr, and sets process.exitCode to 1
+   * **effects** marks the invocation as FAILED and stores usage and error
    */
   async fail({
     invocation,
@@ -186,7 +179,10 @@ export default class CommandLineConcept {
     invocation: Invocation;
     error: string;
     usage?: string;
-  }): Promise<{ invocation: Invocation } | { error: string }> {
+  }): Promise<
+    | { invocation: Invocation; message: string; usage: string }
+    | { error: string }
+  > {
     const doc = this.invocations.get(invocation);
     if (!doc) return { error: `Invocation not found: ${invocation}` };
     if (doc.status === "SUCCEEDED" || doc.status === "FAILED") {
@@ -195,10 +191,7 @@ export default class CommandLineConcept {
     doc.status = "FAILED";
     doc.error = errorMsg;
     if (usage) doc.usage = usage;
-    if (usage) console.error(usage);
-    console.error(errorMsg);
-    process.exitCode = 1;
-    return { invocation };
+    return { invocation, message: errorMsg, usage: usage ?? "" };
   }
 
   /**

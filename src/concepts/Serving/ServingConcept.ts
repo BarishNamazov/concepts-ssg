@@ -3,16 +3,15 @@ import type { ID } from "@utils/types.ts";
 import { type Server, serve } from "bun";
 
 type ServerId = ID;
+type SseClient = (data: string) => void;
 
 interface ServerDoc {
   _id: ServerId;
   port: number;
   root: string;
   server: Server<undefined>;
+  clients: Map<string, SseClient>;
 }
-
-/** SSE clients keyed by connection id. */
-const clients = new Map<string, (data: string) => void>();
 
 /**
  * Serving concept — expose a directory over HTTP with live-reload support.
@@ -22,7 +21,7 @@ const clients = new Map<string, (data: string) => void>();
  *
  * **principle** after a server starts serving a root directory, connected
  *   browsers receive page content; when reload is called, all connected
- *   browsers refresh
+ *   browsers connected to that server refresh
  *
  * **state**
  *   a set of Servers with a port and root directory
@@ -52,6 +51,7 @@ export default class ServingConcept {
       '\n<script>(function(){var s=new EventSource("/_livereload");s.onmessage=function(){location.reload()};})()</script>\n';
 
     let bunServer: Server<undefined>;
+    const clients = new Map<string, SseClient>();
 
     try {
       bunServer = serve({
@@ -131,23 +131,40 @@ export default class ServingConcept {
       port: bunServer.port ?? port,
       root,
       server: bunServer,
+      clients,
     });
 
     return { server: id };
   }
 
   /**
-   * reload (): {}
+   * reload ({ server? }): ({ reloaded }) | ({ error })
    *
-   * **requires** at least one server is running
+   * **requires** `server`, when provided, is a running server
    *
-   * **effects** sends a reload signal to all connected browsers across
-   *   all running servers
+   * **effects** sends a reload signal to connected browsers for `server`, or
+   *   all connected browsers in this concept instance when no server is given
    */
-  async reload(): Promise<{ reloaded: number }> {
-    const count = clients.size;
-    for (const send of clients.values()) {
-      send("reload");
+  async reload({
+    server,
+  }: {
+    server?: ServerId;
+  } = {}): Promise<{ reloaded: number } | { error: string }> {
+    if (server !== undefined) {
+      const doc = this.servers.get(server);
+      if (!doc) return { error: `Server not found: ${server}` };
+      for (const send of doc.clients.values()) {
+        send("reload");
+      }
+      return { reloaded: doc.clients.size };
+    }
+
+    let count = 0;
+    for (const doc of this.servers.values()) {
+      count += doc.clients.size;
+      for (const send of doc.clients.values()) {
+        send("reload");
+      }
     }
     return { reloaded: count };
   }
@@ -157,7 +174,7 @@ export default class ServingConcept {
    *
    * **requires** `server` is a running server
    *
-   * **effects** stops the HTTP server and disconnects all clients
+   * **effects** stops the HTTP server and disconnects its clients
    */
   async stop({
     server: _server,
@@ -167,7 +184,7 @@ export default class ServingConcept {
     const doc = this.servers.get(_server);
     if (!doc) return { error: `Server not found: ${_server}` };
     doc.server.stop();
-    clients.clear();
+    doc.clients.clear();
     this.servers.delete(_server);
     return { server: _server };
   }

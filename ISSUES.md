@@ -8,26 +8,6 @@ Issues are grouped by the layer they affect — concept design, sync composition
 
 Issues where concepts carry application-specific concerns, conflate identity spaces, or use global mutable state.
 
-### ISS-012: Watching knows too much about filesystem/runtime and can emit stale polls
-
-Evidence: `src/concepts/Watching/WatchingConcept.ts:24-31`, `src/concepts/Watching/WatchingConcept.ts:61-77`, `src/concepts/Watching/WatchingConcept.ts:136-169`, `src/concepts/Watching/WatchingConcept.ts:185-227`, `src/runtime/filesystem_watch_driver.ts:20-31`
-
-`Watching` is nominally generic over `Subject`, but it casts subjects to strings for a filesystem driver and stores a `pollEmitter` callback into the sync engine. Timer callbacks do not re-check active status before emitting, and `poll` accepts stopped watchers. The filesystem driver does not catch `watch()` setup failures or watcher error events.
-
-Impact: stopped watchers can still trigger rebuilds, platform-specific watch failures can bypass structured error syncs, and concept independence is weakened by runtime/event-engine knowledge.
-
-Suggested fix: move driver subscription and engine emission to a runtime adapter, keep `Watching` as snapshot comparison state, guard `poll` by active status, and have the driver return structured startup/runtime errors.
-
-### ISS-013: Global mutable state causes cross-instance and cross-build interference
-
-Evidence: `src/concepts/Serving/ServingConcept.ts:14-15`, `src/concepts/Serving/ServingConcept.ts:147-170`, `src/concepts/Filing/FilingConcept.ts:33-34`, `src/concepts/Filing/FilingConcept.ts:99`, `src/concepts/Filing/FilingConcept.ts:253-256`, `src/concepts/CommandLine/CommandLineConcept.ts:112-115`, `src/concepts/CommandLine/CommandLineConcept.ts:166-200`
-
-`Serving` stores SSE clients in a module-level map shared by all instances and servers. `Filing` has one mutable output directory for all entries, and `_getEntry` recomputes output paths from current config rather than the stored write target. `CommandLine` mutates `console` and `process.exitCode` inside concept actions.
-
-Impact: stopping one server disconnects all clients, rebuilds can write entries using another build's output config, and tests/runtime invocations become order-dependent through global process state.
-
-Suggested fix: scope `Serving` clients by concept instance and server ID, store per-entry/per-build output paths, and move console/process effects to a CLI runtime adapter sync.
-
 ### ISS-016: Layouting conflates layout names, layout IDs, and entry IDs
 
 Evidence: `src/concepts/Layouting/LayoutingConcept.ts:33-57`, `src/concepts/Layouting/LayoutingConcept.ts:60-75`, `src/concepts/Layouting/LayoutingConcept.ts:78-120`

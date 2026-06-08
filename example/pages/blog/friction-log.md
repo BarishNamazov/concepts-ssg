@@ -18,17 +18,7 @@ A build can fail to scan, read, render, or write files — and still report succ
 
 See [Sync Layer Issues](/issues/sync-layer).
 
-## Friction 2: Global State Causes Interference
-
-Several concepts store mutable state at module level. `Serving` keeps SSE clients in a module-level `Map` shared across all server instances. `Filing` has one output directory config for all entries. `CommandLine` mutates `process.exitCode` inside concept actions.
-
-The result: stopping one server disconnects all clients. Rebuilds can write entries using another build's output config. Tests become order-dependent because they share process-level state.
-
-State should be scoped by instance: per-server clients, per-build output configs, per-entry write targets.
-
-See [Concept Design Issues](/issues/concept-design).
-
-## Friction 3: The Engine's Evidence Model Is Too Coarse
+## Friction 2: The Engine's Evidence Model Is Too Coarse
 
 The sync engine tracks which journal records have been consumed by which sync names. But the key is just the sync name — not which specific action IDs were matched.
 
@@ -40,7 +30,7 @@ The fix is to store consumed match signatures: `sync name + ordered action IDs`,
 
 See [Engine Core Issues](/issues/engine-core).
 
-## Friction 4: The Filesystem Has No Guardrails
+## Friction 3: The Filesystem Has No Guardrails
 
 `Filing`, `Serving`, and `Publishing` all join path components directly. A content file with `../../etc/passwd` in its route, or a CLI invocation with `--output .`, can escape the intended root directory.
 

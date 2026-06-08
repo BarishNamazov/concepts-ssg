@@ -50,7 +50,7 @@ describe("CommandLine", () => {
     expect("error" in result).toBe(true);
   });
 
-  test("ready transitions to READY and prints message", async () => {
+  test("ready transitions to READY and stores message", async () => {
     const { invocation } = await CommandLine.invoke({ argv: ["build"] });
 
     const result = await CommandLine.ready({
@@ -58,13 +58,15 @@ describe("CommandLine", () => {
       message: "Server ready.",
     });
     expect("error" in result).toBe(false);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.message).toBe("Server ready.");
 
     const [doc] = await CommandLine._getInvocation({ invocation });
     expect(doc.status).toBe("READY");
     expect(doc.message).toBe("Server ready.");
   });
 
-  test("succeed transitions to SUCCEEDED and sets exitCode", async () => {
+  test("succeed transitions to SUCCEEDED and stores message", async () => {
     const { invocation } = await CommandLine.invoke({ argv: ["build"] });
 
     const result = await CommandLine.succeed({
@@ -72,14 +74,15 @@ describe("CommandLine", () => {
       message: "Build done.",
     });
     expect("error" in result).toBe(false);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.message).toBe("Build done.");
 
     const [doc] = await CommandLine._getInvocation({ invocation });
     expect(doc.status).toBe("SUCCEEDED");
     expect(doc.message).toBe("Build done.");
-    expect(process.exitCode as number).toBe(0);
   });
 
-  test("fail transitions to FAILED, prints usage+error, and sets exitCode", async () => {
+  test("fail transitions to FAILED and stores usage and error", async () => {
     const { invocation } = await CommandLine.invoke({ argv: ["build"] });
 
     const result = await CommandLine.fail({
@@ -88,12 +91,14 @@ describe("CommandLine", () => {
       usage: "Usage: ...",
     });
     expect("error" in result).toBe(false);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.message).toBe("Something went wrong");
+    expect(result.usage).toBe("Usage: ...");
 
     const [doc] = await CommandLine._getInvocation({ invocation });
     expect(doc.status).toBe("FAILED");
     expect(doc.error).toBe("Something went wrong");
     expect(doc.usage).toBe("Usage: ...");
-    expect(process.exitCode as number).toBe(1);
   });
 
   test("succeed on already terminal invocation returns error", async () => {
@@ -104,7 +109,7 @@ describe("CommandLine", () => {
     expect("error" in result).toBe(true);
   });
 
-  test("notice prints and stores message without changing status", async () => {
+  test("notice stores message without changing status", async () => {
     const { invocation } = await CommandLine.invoke({ argv: ["build"] });
 
     const result = await CommandLine.notice({
@@ -112,13 +117,16 @@ describe("CommandLine", () => {
       message: "Change detected.",
     });
     expect("error" in result).toBe(false);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.message).toBe("Change detected.");
+    expect(result.level).toBe("info");
 
     const [doc] = await CommandLine._getInvocation({ invocation });
     expect(doc.status).toBe("PENDING");
     expect(doc.message).toBe("Change detected.");
   });
 
-  test("notice with level error prints to stderr", async () => {
+  test("notice with level error returns structured level", async () => {
     const { invocation } = await CommandLine.invoke({ argv: ["build"] });
 
     const result = await CommandLine.notice({
@@ -127,6 +135,8 @@ describe("CommandLine", () => {
       level: "error",
     });
     expect("error" in result).toBe(false);
+    if ("error" in result) throw new Error(result.error);
+    expect(result.level).toBe("error");
   });
 
   test("_getByOperation returns invocation waiting for the operation", async () => {
