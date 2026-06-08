@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <radialGradient id="g1" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </radialGradient>
+    <radialGradient id="g2" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </radialGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="32" height="32" rx="8" fill="url(#g1)"/>
+  <!-- Top-left concept node -->
+  <circle cx="9" cy="10" r="4.5" fill="url(#g2)"/>
+  <!-- Bottom-right concept node -->
+  <circle cx="21" cy="22" r="4.5" fill="url(#g2)"/>
+  <!-- Bottom-left concept node -->
+  <circle cx="9" cy="22" r="3.5" fill="url(#g2)" opacity="0.8"/>
+  <!-- Top-right concept node -->
+  <circle cx="21" cy="10" r="3.5" fill="url(#g2)" opacity="0.8"/>
+  <!-- Sync lines connecting nodes -->
+  <line x1="11.5" y1="11" x2="18" y2="21.5" stroke="#a5b4fc" stroke-width="1.2" opacity="0.6"/>
+  <line x1="18" y1="11" x2="11" y2="21.5" stroke="#a5b4fc" stroke-width="1.2" opacity="0.6"/>
+  <line x1="12" y1="22" x2="18" y2="22" stroke="#a5b4fc" stroke-width="1" opacity="0.5"/>
+  <line x1="12" y1="10" x2="18" y2="10" stroke="#a5b4fc" stroke-width="1" opacity="0.5"/>
+</svg>
