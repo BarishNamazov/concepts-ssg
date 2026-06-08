@@ -46,9 +46,9 @@ Content goes here. Markdown works.
 
 | Field | Purpose |
 |---|---|
-| `title` | Page title, available as `{{title}}` in layouts |
+| `title` | Page title, available as `&#123;&#123;title&#125;&#125;` in layouts |
 | `layout` | Layout template to use (default: `"default"`) |
-| `collections` | Comma-separated collection names for `{{#each}}` listing |
+| `collections` | Comma-separated collection names for `&#123;&#123;#each&#125;&#125;` listing |
 | `date` | Publication date (used for sorting collections) |
 | Any other field | Available as a variable in layouts |
 
@@ -89,13 +89,13 @@ DOCTYPE, `<head>`, and `<body>`.
 
 ### 2. Variable Substitution
 
-Use `{{fieldName}}` to insert frontmatter values:
+Use `&#123;&#123;fieldName&#125;&#125;` to insert frontmatter values:
 
 ```html
-<title>{{title}} — My Site</title>
+<title>&#123;&#123;title&#125;&#125; — My Site</title>
 ```
 
-The special variable `{{content}}` holds the rendered page body.
+The special variable `&#123;&#123;content&#125;&#125;` holds the rendered page body.
 
 ### 3. Slots
 
@@ -112,19 +112,19 @@ Iterate over a collection of pages:
 
 ```html
 <ul>
-{{#each posts sort=date}}
+&#123;&#123;#each posts sort=date&#125;&#125;
   <li>
-    <a href="{{route}}">{{title}}</a>
-    <span>{{date}}</span>
+    <a href="&#123;&#123;route&#125;&#125;">&#123;&#123;title&#125;&#125;</a>
+    <span>&#123;&#123;date&#125;&#125;</span>
   </li>
-{{/each}}
+&#123;&#123;/each&#125;&#125;
 </ul>
 ```
 
 - `sort=field` sorts descending by that field
 - `excludeCurrent=true` (default) excludes the current page from the loop
-- Inside the loop, `{{fieldName}}` resolves against each item's frontmatter
-- `{{route}}` is the cleaned URL path of the item
+- Inside the loop, `&#123;&#123;fieldName&#125;&#125;` resolves against each item's frontmatter
+- `&#123;&#123;route&#125;&#125;` is the cleaned URL path of the item
 
 ## Collections
 
@@ -137,7 +137,7 @@ A page can belong to multiple collections:
 collections: posts, featured
 ```
 
-Collections are consumed by `{{#each}}` loops in layouts. The canonical
+Collections are consumed by `&#123;&#123;#each&#125;&#125;` loops in layouts. The canonical
 pattern is an index page that lists all pages in a collection — see
 [example/pages/blog/index.md](../example/pages/blog/index.md).
 
@@ -205,14 +205,14 @@ I write stuff.
 **mysite/layouts/default.html**
 ```html
 <!DOCTYPE html>
-<html><head><title>{{title}}</title></head>
+<html><head><title>&#123;&#123;title&#125;&#125;</title></head>
 <body><slot/></body></html>
 ```
 
 **mysite/layouts/Home.html**
 ```html
 <default>
-  <h1>{{title}}</h1>
+  <h1>&#123;&#123;title&#125;&#125;</h1>
   <slot/>
   <nav><a href="/about">About</a></nav>
 </default>
