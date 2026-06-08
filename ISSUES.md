@@ -8,16 +8,6 @@ Issues are grouped by the layer they affect — concept design, sync composition
 
 Issues where concepts carry application-specific concerns, conflate identity spaces, or use global mutable state.
 
-### ISS-016: Layouting conflates layout names, layout IDs, and entry IDs
-
-Evidence: `src/concepts/Layouting/LayoutingConcept.ts:33-57`, `src/concepts/Layouting/LayoutingConcept.ts:60-75`, `src/concepts/Layouting/LayoutingConcept.ts:78-120`
-
-`define` uses `name as Layout`, while `compose` stores composed layouts in the same `entries` map using `layoutName as Entry`. That assumes human names are stable IDs and that layout and entry ID spaces never collide.
-
-Impact: layout names can overwrite or collide with entry state, and the concept depends on app naming conventions instead of concept-owned identities.
-
-Suggested fix: allocate fresh layout IDs and store `name` as a unique field. Keep layout-composition state separate from entry-application state.
-
 ### ISS-017: Routing derives routes from mutable global config and weak normalization
 
 Evidence: `src/concepts/Routing/RoutingConcept.ts:28-39`, `src/concepts/Routing/RoutingConcept.ts:54-95`

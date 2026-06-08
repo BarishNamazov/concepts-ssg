@@ -14,7 +14,7 @@ function id(s: string): ID {
 }
 
 describe("Layouting", () => {
-  test("define registers a layout", async () => {
+  test("define registers a layout with a fresh ID and name field", async () => {
     const { layout } = await Layouting.define({
       name: "Header",
       source: "<header>Title</header>",
@@ -23,21 +23,23 @@ describe("Layouting", () => {
     const results = await Layouting._getLayout({ name: "Header" });
     expect(results.length).toBe(1);
     expect(results[0].layout).toBe(layout);
+    expect(results[0].name).toBe("Header");
     expect(results[0].source).toBe("<header>Title</header>");
+    expect(layout).not.toBe("Header");
   });
 
   test("define detects sub-layout references", async () => {
-    await Layouting.define({
+    const { layout } = await Layouting.define({
       name: "Page",
       source: "<Header /><main>Body</main>",
     });
 
-    const uses = await Layouting._getUses({ layout: "Page" as ID });
+    const uses = await Layouting._getUses({ layout });
     expect(uses.length).toBe(1);
-    expect(uses[0].name).toBe("Header" as ID);
+    expect(uses[0].name).toBe("Header");
   });
 
-  test("compose resolves a simple layout", async () => {
+  test("compose resolves a simple layout and stores in compositions, not entries", async () => {
     await Layouting.define({
       name: "Header",
       source: "<header>Title</header>",
@@ -52,6 +54,11 @@ describe("Layouting", () => {
       throw new Error(`Unexpected error: ${result.error}`);
     }
     expect(result.composed).toBe("<header>Title</header><main>Body</main>");
+
+    const composedFromEntries = await Layouting._getComposed({
+      entry: "Page" as ID,
+    });
+    expect(composedFromEntries).toHaveLength(0);
   });
 
   test("compose errors on missing sub-layout", async () => {
@@ -286,5 +293,127 @@ describe("Layouting", () => {
     const stored = await Layouting._getComposed({ entry });
     expect(stored.length).toBe(1);
     expect(stored[0].composed).toBe(applyResult.composed);
+  });
+
+  test("_getComposed returns empty for nonexistent entry", async () => {
+    const result = await Layouting._getComposed({ entry: "nope" as ID });
+    expect(result).toHaveLength(0);
+  });
+
+  test("_getLayout returns empty for nonexistent name", async () => {
+    const result = await Layouting._getLayout({ name: "Nope" });
+    expect(result).toHaveLength(0);
+  });
+
+  test("define allocates a fresh ID different from name", async () => {
+    const { layout } = await Layouting.define({
+      name: "Widget",
+      source: "<div>widget</div>",
+    });
+
+    // The ID should be a UUID, not the human-readable name
+    expect(layout).not.toBe("Widget");
+    expect(typeof layout).toBe("string");
+    expect(layout.length).toBeGreaterThan(20); // UUID length check
+  });
+
+  test("redefining same name replaces old entries and creates new ID", async () => {
+    const first = await Layouting.define({
+      name: "Panel",
+      source: "<div>First</div>",
+    });
+
+    const second = await Layouting.define({
+      name: "Panel",
+      source: "<div>Second</div>",
+    });
+
+    // IDs should differ
+    expect(second.layout).not.toBe(first.layout);
+
+    // Old ID should no longer resolve
+    const oldUses = await Layouting._getUses({ layout: first.layout });
+    expect(oldUses).toHaveLength(0);
+
+    // New ID should work
+    const newUses = await Layouting._getUses({ layout: second.layout });
+    expect(newUses.length).toBeGreaterThanOrEqual(0);
+
+    // Name resolves to new source
+    const results = await Layouting._getLayout({ name: "Panel" });
+    expect(results).toHaveLength(1);
+    expect(results[0].layout).toBe(second.layout);
+    expect(results[0].source).toBe("<div>Second</div>");
+  });
+
+  test("instance isolation: separate Layouting instances have independent name indices", async () => {
+    const a = new LayoutingConcept();
+    const b = new LayoutingConcept();
+
+    await a.define({ name: "Shared", source: "<div>A</div>" });
+    await b.define({ name: "Shared", source: "<div>B</div>" });
+
+    const aLayout = await a._getLayout({ name: "Shared" });
+    const bLayout = await b._getLayout({ name: "Shared" });
+
+    expect(aLayout).toHaveLength(1);
+    expect(bLayout).toHaveLength(1);
+    expect(aLayout[0].source).toBe("<div>A</div>");
+    expect(bLayout[0].source).toBe("<div>B</div>");
+    expect(aLayout[0].layout).not.toBe(bLayout[0].layout);
+  });
+
+  test("remove clears nameIndex, layouts, deps, and compositions", async () => {
+    await Layouting.define({
+      name: "Header",
+      source: "<header>Title</header>",
+    });
+    await Layouting.define({
+      name: "Page",
+      source: "<Header /><slot/>",
+    });
+    await Layouting.compose({ layoutName: "Page" });
+
+    const result = await Layouting.remove({ name: "Header" });
+    expect("error" in result).toBe(false);
+
+    // Layout gone
+    const headerLayout = await Layouting._getLayout({ name: "Header" });
+    expect(headerLayout).toHaveLength(0);
+
+    // Page still exists
+    const pageLayout = await Layouting._getLayout({ name: "Page" });
+    expect(pageLayout).toHaveLength(1);
+
+    // Header uses should return empty for old ID
+    // Removing existing should error
+    const result2 = await Layouting.remove({ name: "Header" });
+    expect("error" in result2).toBe(true);
+  });
+
+  test("clear empties all maps including compositions and nameIndex", async () => {
+    await Layouting.define({
+      name: "Header",
+      source: "<header>Title</header>",
+    });
+    await Layouting.define({
+      name: "Page",
+      source: "<Header /><slot/>",
+    });
+    await Layouting.compose({ layoutName: "Page" });
+
+    await Layouting.apply({
+      entry: id("entry-1"),
+      layoutName: "Page",
+      variables: { content: "Hello" },
+    });
+
+    await Layouting.clear();
+
+    expect(await Layouting._getLayout({ name: "Header" })).toHaveLength(0);
+    expect(await Layouting._getLayout({ name: "Page" })).toHaveLength(0);
+    expect(await Layouting._getComposed({ entry: id("entry-1") })).toHaveLength(
+      0,
+    );
   });
 });

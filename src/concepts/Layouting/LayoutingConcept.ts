@@ -1,16 +1,19 @@
 import type { Empty, ID } from "@utils/types.ts";
+import { freshID } from "@utils/id.ts";
 
 type Layout = ID;
 type Entry = ID;
 
 interface LayoutDoc {
   _id: Layout;
+  name: string;
   source: string;
 }
 
 interface LayoutDep {
   _id: Layout;
-  uses: Layout[];
+  name: string;
+  uses: string[];
 }
 
 interface EntryDoc {
@@ -63,9 +66,19 @@ export default class LayoutingConcept {
   private layouts = new Map<Layout, LayoutDoc>();
   private layoutDeps = new Map<Layout, LayoutDep>();
   private entries = new Map<Entry, EntryDoc>();
+  private compositions = new Map<Layout, { composed: string }>();
+  private nameIndex = new Map<string, Layout>();
 
   // ── public actions ───────────────────────────────────────────────────
 
+  /**
+   * define ({ name, source }): ({ layout })
+   *
+   * **requires** `name` is a non-empty string
+   *
+   * **effects** allocates a fresh layout ID, stores the layout source and
+   *   its sub-layout dependencies, and updates the name-to-ID index
+   */
   async define({
     name,
     source,
@@ -73,22 +86,20 @@ export default class LayoutingConcept {
     name: string;
     source: string;
   }): Promise<{ layout: Layout }> {
-    const layoutId = name as Layout;
-
-    const existingLayout = this.layouts.get(layoutId) ?? {
-      _id: layoutId,
-      source,
-    };
-    existingLayout.source = source;
-    this.layouts.set(layoutId, existingLayout);
+    const layoutId = freshID();
 
     const uses = this.#parseUses(source);
-    const existingDep = this.layoutDeps.get(layoutId) ?? {
-      _id: layoutId,
-      uses,
-    };
-    existingDep.uses = uses;
-    this.layoutDeps.set(layoutId, existingDep);
+
+    const prevId = this.nameIndex.get(name);
+    if (prevId !== undefined) {
+      this.layouts.delete(prevId);
+      this.layoutDeps.delete(prevId);
+      this.compositions.delete(prevId);
+    }
+
+    this.nameIndex.set(name, layoutId);
+    this.layouts.set(layoutId, { _id: layoutId, name, source });
+    this.layoutDeps.set(layoutId, { _id: layoutId, name, uses });
 
     return { layout: layoutId };
   }
@@ -102,11 +113,11 @@ export default class LayoutingConcept {
     if (typeof result === "object" && "error" in result) return result;
     const composed = result as string;
 
-    const doc = this.entries.get(layoutName as Entry) ?? {
-      _id: layoutName as Entry,
-    };
-    doc.composed = composed;
-    this.entries.set(layoutName as Entry, doc);
+    const layoutId = this.nameIndex.get(layoutName);
+    if (layoutId === undefined) {
+      return { error: `Layout not found: ${layoutName}` };
+    }
+    this.compositions.set(layoutId, { composed });
 
     return { layoutName, composed };
   }
@@ -169,13 +180,19 @@ export default class LayoutingConcept {
     name,
   }: {
     name: string;
-  }): Promise<{ layout: Layout; source: string }[]> {
-    const doc = this.layouts.get(name as Layout);
+  }): Promise<{ layout: Layout; name: string; source: string }[]> {
+    const layoutId = this.nameIndex.get(name);
+    if (layoutId === undefined) return [];
+    const doc = this.layouts.get(layoutId);
     if (!doc) return [];
-    return [{ layout: doc._id, source: doc.source }];
+    return [{ layout: doc._id, name: doc.name, source: doc.source }];
   }
 
-  async _getUses({ layout }: { layout: Layout }): Promise<{ name: Layout }[]> {
+  async _getUses({
+    layout,
+  }: {
+    layout: Layout;
+  }): Promise<{ name: string }[]> {
     const doc = this.layoutDeps.get(layout);
     if (!doc) return [];
     return doc.uses.map((name) => ({ name }));
@@ -211,8 +228,7 @@ export default class LayoutingConcept {
     const resolved = this.#resolveLayout(layoutName, new Set());
     const template =
       typeof resolved === "string"
-        ? // slot content into layout to get the effective template
-          resolved.replace(SLOT_RE, (_full, fallback?: string) => {
+        ? resolved.replace(SLOT_RE, (_full, fallback?: string) => {
             return content !== undefined ? content : (fallback ?? "");
           })
         : content;
@@ -237,12 +253,14 @@ export default class LayoutingConcept {
   }: {
     name: string;
   }): Promise<{ name: string } | { error: string }> {
-    const id = name as Layout;
-    if (!this.layouts.has(id)) {
+    const layoutId = this.nameIndex.get(name);
+    if (layoutId === undefined) {
       return { error: `Layout not found: ${name}` };
     }
-    this.layouts.delete(id);
-    this.layoutDeps.delete(id);
+    this.layouts.delete(layoutId);
+    this.layoutDeps.delete(layoutId);
+    this.compositions.delete(layoutId);
+    this.nameIndex.delete(name);
     return { name };
   }
 
@@ -250,12 +268,14 @@ export default class LayoutingConcept {
     this.layouts.clear();
     this.layoutDeps.clear();
     this.entries.clear();
+    this.compositions.clear();
+    this.nameIndex.clear();
     return {};
   }
 
   // ── private template parsing ─────────────────────────────────────────
 
-  #parseUses(source: string): Layout[] {
+  #parseUses(source: string): string[] {
     const names = new Set<string>();
     for (const m of source.matchAll(SELF_CLOSE_RE)) {
       names.add(m[1]);
@@ -265,7 +285,7 @@ export default class LayoutingConcept {
       if (!m[0].startsWith("</")) names.add(m[1]);
     }
     WRAP_OPEN_RE.lastIndex = 0;
-    return [...names] as Layout[];
+    return [...names];
   }
 
   /**
@@ -329,21 +349,22 @@ export default class LayoutingConcept {
     }
     visited.add(layoutName);
 
-    const layout = this.layouts.get(layoutName as Layout);
+    const layoutId = this.nameIndex.get(layoutName);
+    if (layoutId === undefined) {
+      return { error: `Layout not found: ${layoutName}` };
+    }
+
+    const layout = this.layouts.get(layoutId);
     if (!layout) return { error: `Layout not found: ${layoutName}` };
 
-    const depDoc = this.layoutDeps.get(layoutName as Layout);
+    const depDoc = this.layoutDeps.get(layoutId);
     const uses = depDoc?.uses ?? [];
 
     const resolvedDeps = new Map<string, string>();
     for (const use of uses) {
-      const result = this.#resolveLayout(
-        use as string,
-        new Set(visited),
-        cache,
-      );
+      const result = this.#resolveLayout(use, new Set(visited), cache);
       if (typeof result === "object" && "error" in result) return result;
-      resolvedDeps.set(use as string, result as string);
+      resolvedDeps.set(use, result as string);
     }
 
     let source = layout.source;
