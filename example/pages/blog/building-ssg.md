@@ -36,7 +36,7 @@ Instead of one `SiteBuilder` class, the work is split across 11 concepts. Each o
 
 ### Presentation
 
-**`Layouting`** manages two things: layout definitions (load once per layout file) and layout application (resolve the layout for an entry, substitute variables like `{{title}}` and `{{content}}`, and produce final HTML). Layouts are small in this example — they support named component slots, scalar variables, and collection loops.
+**`Layouting`** manages two things: layout definitions (load once per layout file) and layout application (resolve the layout for an entry, substitute variables such as the title and body content, and produce final HTML). Layouts are small in this example — they support named component slots, scalar variables, and collection loops.
 
 **`Collecting`** records which entries belong to which named collections. A page's frontmatter `collections: posts` becomes a membership record. This powers index pages: "list all entries in the posts collection."
 
