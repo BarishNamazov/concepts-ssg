@@ -51,6 +51,12 @@ const EACH_BLOCK_RE = /\{\{#each\s+([^}]+)\}\}([\s\S]*?)\{\{\/each\}\}/g;
 /** Splits a directive string like `posts sort=date excludeCurrent=false`. */
 const TOKEN_RE = /[^\s"']+|"[^"]*"|'[^']*'/g;
 
+/** Matches escaped braces `\{{` and `\}}` for literal rendering. */
+const ESC_OPEN_RE = /\\\{\{/g;
+const ESC_CLOSE_RE = /\\\}\}/g;
+const ESC_OPEN_PLACEHOLDER = "\uE001";
+const ESC_CLOSE_PLACEHOLDER = "\uE002";
+
 /**
  * Layouting concept — own template definitions, component resolution, and
  * template rendering (variable substitution, slots, `{{#each}}` loops).
@@ -389,13 +395,30 @@ export default class LayoutingConcept {
     sequences: TemplateSequences,
     currentEntry: Entry | undefined,
   ): string {
+    const escapedSlot = slotContent !== undefined
+      ? slotContent
+          .replace(ESC_OPEN_RE, ESC_OPEN_PLACEHOLDER)
+          .replace(ESC_CLOSE_RE, ESC_CLOSE_PLACEHOLDER)
+      : undefined;
+
+    const escapedVars: TemplateVariables = {};
+    for (const [key, val] of Object.entries(variables)) {
+      escapedVars[key] = val
+        .replace(ESC_OPEN_RE, ESC_OPEN_PLACEHOLDER)
+        .replace(ESC_CLOSE_RE, ESC_CLOSE_PLACEHOLDER);
+    }
+
     let result = template.replace(
       SLOT_RE,
       (_full: string, fallback?: string) => {
-        if (slotContent !== undefined) return slotContent;
+        if (escapedSlot !== undefined) return escapedSlot;
         return fallback ?? "";
       },
     );
+
+    result = result
+      .replace(ESC_OPEN_RE, ESC_OPEN_PLACEHOLDER)
+      .replace(ESC_CLOSE_RE, ESC_CLOSE_PLACEHOLDER);
 
     // Resolve {{#each}} blocks before scalar variables so `{{title}}` in
     // each-block inner templates resolves against item fields.
@@ -430,10 +453,14 @@ export default class LayoutingConcept {
     );
 
     result = result.replace(VAR_RE, (_, name: string) => {
-      const val = variables[name];
+      const val = escapedVars[name];
       if (typeof val === "string") return val;
       return "";
     });
+
+    result = result
+      .replace(new RegExp(ESC_OPEN_PLACEHOLDER, "g"), "{{")
+      .replace(new RegExp(ESC_CLOSE_PLACEHOLDER, "g"), "}}");
 
     return result;
   }

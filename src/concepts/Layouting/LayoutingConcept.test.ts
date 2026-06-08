@@ -416,4 +416,48 @@ describe("Layouting", () => {
       0,
     );
   });
+
+  test("apply renders escaped braces as literal text", async () => {
+    await Layouting.define({
+      name: "Guide",
+      source: "<body><div>{{content}}</div></body>",
+    });
+
+    const result = await Layouting.apply({
+      entry: id("guide"),
+      layoutName: "Guide",
+      variables: {
+        title: "Guide",
+        content:
+          "Use <code>\\{{title}}</code> and <code>\\{{#each posts}}</code>",
+      },
+    });
+
+    if ("error" in result) throw new Error(String(result.error));
+    expect(result.composed).toContain("<code>{{title}}</code>");
+    expect(result.composed).toContain("<code>{{#each posts}}</code>");
+    expect(result.composed).not.toContain("\\{{");
+  });
+
+  test("apply renders escaped braces mixed with real variables", async () => {
+    await Layouting.define({
+      name: "Page",
+      source: "<h1>{{title}}</h1><div>{{content}}</div>",
+    });
+
+    const result = await Layouting.apply({
+      entry: id("page-esc"),
+      layoutName: "Page",
+      variables: {
+        title: "Hello",
+        content: "Example: <code>\\{{title}}</code> shows the title.",
+      },
+    });
+
+    if ("error" in result) throw new Error(String(result.error));
+    expect(result.composed).toContain("<h1>Hello</h1>");
+    expect(result.composed).toContain("<code>{{title}}</code>");
+    expect(result.composed).toContain("shows the title");
+    expect(result.composed).not.toContain("\\{{");
+  });
 });
