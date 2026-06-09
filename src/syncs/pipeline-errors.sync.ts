@@ -2,11 +2,11 @@
  * Pipeline error syncs.
  *
  * Filing.read/write/copy, Formatting.render, Layouting.apply,
- * Routing.derive errors → Commanding.fail.
+ * Routing.derive errors → Building.fail.
  */
 
 import {
-  Commanding as _Commanding,
+  Building as _Building,
   Filing as _Filing,
   Formatting as _Formatting,
   Layouting as _Layouting,
@@ -15,7 +15,7 @@ import {
 import { actions, type Sync } from "@engine";
 
 type C = {
-  Commanding: typeof _Commanding;
+  Building: typeof _Building;
   Filing: typeof _Filing;
   Formatting: typeof _Formatting;
   Layouting: typeof _Layouting;
@@ -23,74 +23,74 @@ type C = {
 };
 
 export function createPipelineErrorSyncs({
-  Commanding,
+  Building,
   Filing,
   Formatting,
   Layouting,
   Routing,
 }: C) {
-  const ReadErrorFailsBuild: Sync = ({ command, error }) => ({
+  const ReadErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.read, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const WriteErrorFailsBuild: Sync = ({ command, error }) => ({
+  const WriteErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.write, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const CopyErrorFailsBuild: Sync = ({ command, error }) => ({
+  const CopyErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.copy, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const RenderErrorFailsBuild: Sync = ({ command, error }) => ({
+  const RenderErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Formatting.render, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const ApplyErrorFailsBuild: Sync = ({ command, error }) => ({
+  const ApplyErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Layouting.apply, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const DeriveErrorFailsBuild: Sync = ({ command, error }) => ({
+  const DeriveErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Routing.derive, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const SetContentErrorFailsBuild: Sync = ({ command, error }) => ({
+  const SetContentErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.setContent, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
-  const CleanOutputErrorFailsBuild: Sync = ({ command, error }) => ({
+  const CleanOutputErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.cleanOutput, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
   return {
@@ -106,7 +106,7 @@ export function createPipelineErrorSyncs({
 }
 
 const defaultSyncs = createPipelineErrorSyncs({
-  Commanding: _Commanding,
+  Building: _Building,
   Filing: _Filing,
   Formatting: _Formatting,
   Layouting: _Layouting,

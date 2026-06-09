@@ -3,12 +3,12 @@
  *
  * Layout read → Layouting.define
  * Formatting.render + Routing.derive → Layouting.apply
- * Commanding.succeed → index page regeneration via Layouting.apply.
+ * Building.complete → index page regeneration via Layouting.apply.
  */
 
 import {
+  Building as _Building,
   Collecting as _Collecting,
-  Commanding as _Commanding,
   Filing as _Filing,
   Formatting as _Formatting,
   Frontmattering as _Frontmattering,
@@ -18,8 +18,8 @@ import {
 import { actions, type Sync } from "@engine";
 
 type C = {
+  Building: typeof _Building;
   Collecting: typeof _Collecting;
-  Commanding: typeof _Commanding;
   Filing: typeof _Filing;
   Formatting: typeof _Formatting;
   Frontmattering: typeof _Frontmattering;
@@ -28,8 +28,8 @@ type C = {
 };
 
 export function createTemplatesSync({
+  Building,
   Collecting,
-  Commanding,
   Filing,
   Formatting,
   Frontmattering,
@@ -100,7 +100,7 @@ export function createTemplatesSync({
    * fetches the data and passes it in as typed sequences.
    */
   const FinalizeTriggersIndexRegen: Sync = ({
-    command,
+    build,
     entry,
     collName,
     sortBy,
@@ -114,11 +114,10 @@ export function createTemplatesSync({
     vars,
   }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
-      [Commanding.succeed, { command }, {}],
+      [Building.start, {}, { build }],
+      [Building.complete, { build }, { build }],
     ),
     where: async (frames) => {
-      // For every entry, get its rendered HTML and layout name
       frames = await frames.query(Filing._getAll, {}, { entry });
       frames = await frames.query(Formatting._getHtml, { entry }, { html });
       frames = await frames.query(
@@ -135,7 +134,6 @@ export function createTemplatesSync({
         };
       });
 
-      // Discover which collection loops the template needs
       frames = await frames.query(
         Layouting._getSequenceRequests,
         { layoutName, content: html },
@@ -147,22 +145,18 @@ export function createTemplatesSync({
       );
       if (frames.length === 0) return frames;
 
-      // Fetch the collection rows
       frames = await frames.query(
         Collecting._getEntries,
         { collection: collName },
         { entry: itemEntry, metadata: itemMeta },
       );
 
-      // Collect entry+metadata into one array per page, keeping
-      // collection name and sortBy as group keys on the frame.
       frames = frames.collectAs([itemEntry, itemMeta], rawItems);
 
       return frames.map((frame) => {
         const raw = (frame[rawItems] as Record<string, unknown>[]) ?? [];
         const collectionName = (frame[collName] as string) ?? "";
 
-        // Build typed sequences from raw collected rows
         const sequences: Record<
           string,
           Array<{ entry: string; fields: Record<string, string> }>
@@ -183,7 +177,6 @@ export function createTemplatesSync({
         }
         sequences[collectionName] = rows;
 
-        // Build variables from frontmatter + content
         const fieldsObj =
           ((frame as Record<symbol, unknown>)[fields] as
             | Record<string, string | number | boolean>
@@ -221,8 +214,8 @@ export function createTemplatesSync({
 }
 
 const defaultSyncs = createTemplatesSync({
+  Building: _Building,
   Collecting: _Collecting,
-  Commanding: _Commanding,
   Filing: _Filing,
   Formatting: _Formatting,
   Frontmattering: _Frontmattering,

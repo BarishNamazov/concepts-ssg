@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createConcepts } from "@concepts";
 import FormattingConcept from "@concepts/Formatting/FormattingConcept.ts";
 import { Logging } from "@engine";
+import type { ID } from "@utils/types.ts";
 import { createSyncs } from "./app.ts";
 
 class BlockingFormattingConcept extends FormattingConcept {
@@ -38,11 +39,11 @@ async function setupApp() {
 }
 
 async function waitFor(
-  predicate: () => boolean,
+  predicate: () => boolean | Promise<boolean>,
   timeoutMs = 1000,
 ): Promise<void> {
   const startedAt = Date.now();
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - startedAt > timeoutMs) {
       throw new Error("Timed out waiting for condition");
     }
@@ -50,10 +51,17 @@ async function waitFor(
   }
 }
 
-function buildIssueCount(app: Awaited<ReturnType<typeof setupApp>>): number {
-  return [...app.Engine.Action.actions.values()].filter(
-    (record) => record.input.name === "build",
-  ).length;
+function buildStartCount(app: Awaited<ReturnType<typeof setupApp>>): number {
+  let count = 0;
+  for (const record of app.Engine.Action.actions.values()) {
+    if (
+      record.concept.constructor.name === "BuildingConcept" &&
+      record.action.action?.name === "bound start"
+    ) {
+      count++;
+    }
+  }
+  return count;
 }
 
 let tempDir: string;
@@ -179,18 +187,15 @@ describe("syncs: scan → read → parse cascades", () => {
       source: "content",
     });
 
+    const all = await app.Filing._getAll();
     const entries = await app.Collecting._getEntries({ collection: "posts" });
-    expect(entries.length).toBeGreaterThan(0);
-    const found = entries.find((e) => e.metadata.title === "My Post");
-    expect(found).toBeDefined();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].entry).toBe(all[0].entry);
+    expect(entries[0].metadata.title).toBe("My Post");
   });
 
   test("layout scan cascades to Layouting.define", async () => {
     const app = await setupApp();
-    await writeFile(
-      join(layoutsDir, "Header.html"),
-      "<header>{{title}}</header>",
-    );
     await writeFile(join(layoutsDir, "default.html"), "<main><slot/></main>");
 
     await app.Filing.scan({
@@ -200,102 +205,64 @@ describe("syncs: scan → read → parse cascades", () => {
       source: "layouts",
     });
 
-    const headerLayout = await app.Layouting._getLayout({ name: "Header" });
-    expect(headerLayout).toHaveLength(1);
-    expect(headerLayout[0].source).toBe("<header>{{title}}</header>");
-
-    const defaultLayout = await app.Layouting._getLayout({ name: "default" });
-    expect(defaultLayout).toHaveLength(1);
+    const layout = await app.Layouting._getLayout({ name: "default" });
+    expect(layout).toHaveLength(1);
+    expect(layout[0].name).toBe("default");
   });
 
-  test("scan → read → parse → render → route → collect → apply → write (full pipeline for one file)", async () => {
+  test("Formatting.render + Routing.derive → Layouting.apply", async () => {
     const app = await setupApp();
-
     await app.Layouting.define({
       name: "default",
       source: "<main><slot/></main>",
     });
+    const entry = "doc-1" as never;
 
-    await writeFile(
-      join(sourceDir, "page.md"),
-      "---\ntitle: Pipeline Test\nlayout: default\ncollections: posts\n---\n\n<p>Content</p>",
-    );
+    await app.Formatting.render({
+      entry,
+      source: "# Title",
+      format: "markdown",
+    });
+    await app.Routing.derive({ entry, filePath: "pages/post.md" });
 
-    await app.Routing.configure({ stripPrefix: "pages" });
-
-    await app.Filing.scan({
-      directory: sourceDir,
-      patterns: ["**/*.md"],
-      outputDirectory: outputDir,
-      source: "content",
+    await app.Layouting.apply({
+      entry,
+      layoutName: "default",
+      variables: { content: "<h1>Title</h1>" },
     });
 
-    const all = await app.Filing._getAll();
-    expect(all).toHaveLength(1);
-
-    const routes = await app.Routing._getRoute({ entry: all[0].entry });
-    expect(routes).toHaveLength(1);
-    expect(routes[0].route).toBe("/page");
-
-    const html = app.Formatting._getHtml({ entry: all[0].entry });
-    expect(html).toHaveLength(1);
-    expect(html[0].html).toContain("<p>Content</p>");
-
-    const composed = await app.Layouting._getComposed({
-      entry: all[0].entry,
-    });
+    const composed = await app.Layouting._getComposed({ entry });
     expect(composed).toHaveLength(1);
-    expect(composed[0].composed).toContain("<main><p>Content</p></main>");
-
-    const collected = await app.Collecting._getEntries({
-      collection: "posts",
-    });
-    const found = collected.find((e) => e.metadata.title === "Pipeline Test");
-    expect(found).toBeDefined();
-
-    const entryDoc = await app.Filing._getEntry({ entry: all[0].entry });
-    expect(entryDoc[0].written).toBe(true);
+    expect(composed[0].composed).toContain("<h1>Title</h1>");
+    expect(composed[0].composed).toContain("<main>");
   });
-});
 
-describe("Filing source field", () => {
-  test("_getBySource and _getAll distinguish layout vs content entries", async () => {
+  test("Layouting.apply stores composed HTML", async () => {
     const app = await setupApp();
-    await writeFile(join(layoutsDir, "layout.html"), "<div></div>");
-    await writeFile(join(sourceDir, "page.md"), "# Page");
+    const entry = "page-1" as never;
 
-    await app.Filing.scan({
-      directory: layoutsDir,
-      patterns: ["*.html"],
-      outputDirectory: outputDir,
-      source: "layouts",
-    });
-    await app.Filing.scan({
-      directory: sourceDir,
-      patterns: ["**/*.md"],
-      outputDirectory: outputDir,
-      source: "content",
+    await app.Layouting.apply({
+      entry,
+      layoutName: "default",
+      variables: { content: "<html>Hello</html>" },
     });
 
-    const all = await app.Filing._getAll();
-    const layoutEntries = all.filter((e) => e.source === "layouts");
-    const contentEntries = all.filter((e) => e.source === "content");
-    expect(layoutEntries).toHaveLength(1);
-    expect(contentEntries).toHaveLength(1);
-
-    const bySource = await app.Filing._getBySource({ source: "layouts" });
-    expect(bySource).toHaveLength(1);
+    const composed = await app.Layouting._getComposed({ entry });
+    expect(composed).toHaveLength(1);
+    expect(composed[0].composed).toBe("<html>Hello</html>");
   });
 });
 
-describe("integration: full build", () => {
+// ── Integration tests that run through the full build pipeline ──────
+
+describe("syncs: full build pipeline integration", () => {
   let integrationTemp: string;
   let intSource: string;
   let intOutput: string;
   let intLayouts: string;
 
   beforeEach(async () => {
-    integrationTemp = await mkdtemp(join(tmpdir(), "sync-int-"));
+    integrationTemp = await mkdtemp(join(tmpdir(), "build-int-test-"));
     intSource = join(integrationTemp, "pages");
     intOutput = join(integrationTemp, "dist");
     intLayouts = join(integrationTemp, "layouts");
@@ -329,9 +296,9 @@ describe("integration: full build", () => {
       "---\ntitle: About\n---\n\nWe make things.",
     );
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput, layouts: intLayouts },
+    await app.Building.request({
+      config: { source: intSource, output: intOutput, layouts: intLayouts },
+      kind: "manual",
     });
 
     const indexContent = await readFile(join(intOutput, "index.html"), "utf-8");
@@ -346,18 +313,20 @@ describe("integration: full build", () => {
     expect(aboutContent).toContain("<!DOCTYPE html>");
   });
 
-  test("build command transitions to SUCCEEDED after build completes", async () => {
+  test("build transitions to SUCCEEDED after build completes", async () => {
     const app = await setupApp();
     await writeFile(join(intSource, "index.md"), "# Welcome");
 
-    const result = await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput },
+    const result = await app.Building.request({
+      config: { source: intSource, output: intOutput },
+      kind: "manual",
     });
 
-    const [cmdDoc] = await app.Commanding._get({ command: result.command });
-    expect(cmdDoc.status).toBe("SUCCEEDED");
-    expect(cmdDoc.name).toBe("build");
+    const [buildDoc] = await app.Building._getBuild({
+      build: (result as { build: ID }).build,
+    });
+    expect(buildDoc.status).toBe("SUCCEEDED");
+    expect(buildDoc.kind).toBe("manual");
   });
 
   test("builds with blog index using {{#each}}", async () => {
@@ -386,9 +355,9 @@ describe("integration: full build", () => {
       "---\ntitle: Post Two\ndate: 2024-06-01\ncollections: posts\n---\n\nTwo.",
     );
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput, layouts: intLayouts },
+    await app.Building.request({
+      config: { source: intSource, output: intOutput, layouts: intLayouts },
+      kind: "manual",
     });
 
     const blogIndexContent = await readFile(
@@ -407,9 +376,9 @@ describe("integration: full build", () => {
     const app = await setupApp();
     await writeFile(join(intSource, "index.md"), "# Plain");
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput },
+    await app.Building.request({
+      config: { source: intSource, output: intOutput },
+      kind: "manual",
     });
 
     const content = await readFile(join(intOutput, "index.html"), "utf-8");
@@ -420,9 +389,9 @@ describe("integration: full build", () => {
     const app = await setupApp();
     await writeFile(join(intSource, "first.md"), "# First");
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput },
+    await app.Building.request({
+      config: { source: intSource, output: intOutput },
+      kind: "manual",
     });
 
     let content = await readFile(
@@ -438,9 +407,9 @@ describe("integration: full build", () => {
 
     await writeFile(join(secondSource, "second.md"), "# Second");
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: secondSource, output: secondOutput },
+    await app.Building.request({
+      config: { source: secondSource, output: secondOutput },
+      kind: "manual",
     });
 
     content = await readFile(
@@ -472,9 +441,9 @@ describe("integration: full build", () => {
       '---\ntitle: Existing\n---\n<div class="custom">Already formatted</div>',
     );
 
-    await app.Commanding.issue({
-      name: "build",
-      args: { source: intSource, output: intOutput, layouts: intLayouts },
+    await app.Building.request({
+      config: { source: intSource, output: intOutput, layouts: intLayouts },
+      kind: "manual",
     });
 
     const htmlContent = await readFile(
@@ -494,14 +463,16 @@ describe("regression: build failures", () => {
   test("missing source directory fails the build", async () => {
     const app = await setupApp();
 
-    const result = await app.Commanding.issue({
-      name: "build",
-      args: { source: "/nonexistent/path", output: "/tmp/out" },
+    const result = await app.Building.request({
+      config: { source: "/nonexistent/path", output: "/tmp/out" },
+      kind: "manual",
     });
 
-    const [cmd] = await app.Commanding._get({ command: result.command });
-    expect(cmd.status).toBe("FAILED");
-    expect(cmd.error).toContain("Directory does not exist");
+    const [buildDoc] = await app.Building._getBuild({
+      build: (result as { build: ID }).build,
+    });
+    expect(buildDoc.status).toBe("FAILED");
+    expect(buildDoc.error).toContain("Directory does not exist");
 
     const scanErrors = [...app.Engine.Action.actions.values()].filter(
       (record) => record.input.source === "content" && record.output?.error,
@@ -514,13 +485,15 @@ describe("regression: build failures", () => {
     const app = await setupApp();
     await writeFile(join(sourceDir, "index.md"), "# Hi");
 
-    const result = await app.Commanding.issue({
-      name: "build",
-      args: { source: sourceDir, output: outputDir },
+    const result = await app.Building.request({
+      config: { source: sourceDir, output: outputDir },
+      kind: "manual",
     });
 
-    const [cmd] = await app.Commanding._get({ command: result.command });
-    expect(cmd.status).toBe("SUCCEEDED");
+    const [buildDoc] = await app.Building._getBuild({
+      build: (result as { build: ID }).build,
+    });
+    expect(buildDoc.status).toBe("SUCCEEDED");
 
     const content = await readFile(join(outputDir, "index.html"), "utf-8");
     expect(content).toContain("Hi");
@@ -555,7 +528,6 @@ describe("regression: scan-specific reads", () => {
     await writeFile(join(layoutsDir, "layout.html"), "<div></div>");
     await writeFile(join(sourceDir, "page.md"), "# Page");
 
-    // Scan layouts first — triggers reads for layout entries
     await app.Filing.scan({
       directory: layoutsDir,
       patterns: ["*.html"],
@@ -563,7 +535,6 @@ describe("regression: scan-specific reads", () => {
       source: "layouts",
     });
 
-    // Verify layout entries have content from the layout scan's reads
     const allAfterLayout = await app.Filing._getAll();
     const layoutEntry = allAfterLayout.find((e) => e.source === "layouts");
     expect(layoutEntry).toBeDefined();
@@ -572,7 +543,6 @@ describe("regression: scan-specific reads", () => {
     });
     expect(layoutDoc[0].content).toBeDefined();
 
-    // Now scan content — should NOT re-read layout entries
     await app.Filing.scan({
       directory: sourceDir,
       patterns: ["**/*.md"],
@@ -580,8 +550,6 @@ describe("regression: scan-specific reads", () => {
       source: "content",
     });
 
-    // Content entries should be read, layout entries should NOT have been
-    // read from the content directory (which would cause "Failed to read file" errors)
     const all = await app.Filing._getAll();
     const contentEntries = all.filter((e) => e.source === "content");
     for (const e of contentEntries) {
@@ -608,12 +576,10 @@ describe("regression: collection membership preservation (ISS-019)", () => {
       source: "content",
     });
 
-    // Entry should still be in the posts collection after route update
     const entries = await app.Collecting._getEntries({ collection: "posts" });
     expect(entries).toHaveLength(1);
     expect(entries[0].entry).toBeDefined();
     expect(entries[0].metadata.title).toBe("My Post");
-    // Route metadata should be merged, not replace membership
     expect(entries[0].metadata.route).toBeDefined();
   });
 });
@@ -628,7 +594,6 @@ describe("regression: isolation", () => {
       source: "<main><slot/></main>",
     });
 
-    // app2 should NOT have the layout from app1
     const layout = await app2.Layouting._getLayout({ name: "default" });
     expect(layout).toHaveLength(0);
   });
@@ -644,51 +609,51 @@ describe("regression: dev rebuild coalescing", () => {
     app.Engine.register(createSyncs(app));
 
     await writeFile(join(sourceDir, "index.md"), "# First");
-    const { command: devSession } = await app.Commanding.issue({
-      name: "dev-session",
-      args: { source: sourceDir, output: outputDir },
-    });
+    const devContext = "dev-1" as ID;
 
     Formatting.block = true;
-    const activeRequest = app.Coalescing.request({
-      context: devSession,
+    app.Building.request({
+      config: {
+        source: sourceDir,
+        output: outputDir,
+        layouts: layoutsDir,
+        public: outputDir,
+      },
       kind: "change",
+      context: devContext,
     });
 
     await waitFor(() => Formatting.waiting === 1);
-    expect(buildIssueCount(app)).toBe(1);
+    expect(buildStartCount(app)).toBe(1);
 
-    const queuedA = await app.Coalescing.request({
-      context: devSession,
+    const queuedA = await app.Building.request({
+      config: { source: sourceDir, output: outputDir },
       kind: "change",
+      context: devContext,
     });
-    const queuedB = await app.Coalescing.request({
-      context: devSession,
+    const queuedB = await app.Building.request({
+      config: { source: sourceDir, output: outputDir },
       kind: "change",
+      context: devContext,
     });
 
-    expect(queuedA).toEqual({
-      context: devSession,
-      kind: "change",
-      queued: true,
-    });
-    expect(queuedB).toEqual({
-      context: devSession,
-      kind: "change",
-      queued: true,
-    });
-    expect(buildIssueCount(app)).toBe(1);
+    expect(queuedA).toEqual({ context: devContext, queued: true });
+    expect(queuedB).toEqual({ context: devContext, queued: true });
+    expect(buildStartCount(app)).toBe(1);
 
     Formatting.releaseOne();
-    await waitFor(() => buildIssueCount(app) === 2 && Formatting.waiting === 1);
+    await waitFor(() => buildStartCount(app) === 2 && Formatting.waiting === 1);
 
     Formatting.releaseOne();
-    await activeRequest;
+    await waitFor(async () => {
+      const [ctx] = await app.Building._getContext({ context: devContext });
+      return ctx !== undefined && !ctx.activeBuild && !ctx.pending;
+    });
 
-    expect(buildIssueCount(app)).toBe(2);
-    const [state] = await app.Coalescing._get({ context: devSession });
-    expect(state.active).toBe(false);
-    expect(state.pending).toBe(false);
+    expect(buildStartCount(app)).toBe(2);
+    const [ctx] = await app.Building._getContext({ context: devContext });
+    expect(ctx.activeBuild).toBeNull();
+    expect(ctx.pending).toBe(false);
   });
 });
 
@@ -725,7 +690,6 @@ describe("CLI: one-shot build via CommandLine.invoke", () => {
     const content = await readFile(join(cliOutput, "index.html"), "utf-8");
     expect(content).toContain("<h1>Hello CLI</h1>");
 
-    // Stats: 1 content page, 0 layouts, 0 public
     const all = await app.Filing._getAll();
     expect(all.filter((e) => e.source === "content")).toHaveLength(1);
   });

@@ -395,11 +395,12 @@ export default class LayoutingConcept {
     sequences: TemplateSequences,
     currentEntry: Entry | undefined,
   ): string {
-    const escapedSlot = slotContent !== undefined
-      ? slotContent
-          .replace(ESC_OPEN_RE, ESC_OPEN_PLACEHOLDER)
-          .replace(ESC_CLOSE_RE, ESC_CLOSE_PLACEHOLDER)
-      : undefined;
+    const escapedSlot =
+      slotContent !== undefined
+        ? slotContent
+            .replace(ESC_OPEN_RE, ESC_OPEN_PLACEHOLDER)
+            .replace(ESC_CLOSE_RE, ESC_CLOSE_PLACEHOLDER)
+        : undefined;
 
     const escapedVars: TemplateVariables = {};
     for (const [key, val] of Object.entries(variables)) {

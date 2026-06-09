@@ -1,6 +1,6 @@
 /**
- * CLI syncs — translate `CommandLine.invoke` into `Commanding.issue`
- * and wire the invocation lifecycle to command completion.
+ * CLI syncs — translate `CommandLine.invoke` into `Building.request`
+ * and wire the invocation lifecycle to build completion.
  */
 
 import type { AppConcepts } from "@concepts";
@@ -9,8 +9,8 @@ import { parseCli } from "../runtime/cli.ts";
 
 export function createCliSyncs({
   CommandLine,
-  Commanding,
-}: Pick<AppConcepts, "CommandLine" | "Commanding">) {
+  Building,
+}: Pick<AppConcepts, "CommandLine" | "Building">) {
   const CliInvalid: Sync = ({ invocation, argv, error, usage }) => ({
     when: actions([CommandLine.invoke, {}, { invocation, argv }]),
     where: (frames) =>
@@ -47,7 +47,7 @@ export function createCliSyncs({
           };
           return { ...frame, [args]: parsed.args };
         }),
-    then: actions([Commanding.issue, { name: "build", args }]),
+    then: actions([Building.request, { config: args, kind: "manual" }]),
   });
 
   const CliInvokeDev: Sync = ({ invocation, argv, args }) => ({
@@ -66,45 +66,54 @@ export function createCliSyncs({
           };
           return { ...frame, [args]: parsed.args };
         }),
-    then: actions([Commanding.issue, { name: "dev", args }]),
+    then: actions([
+      Building.request,
+      { config: args, kind: "dev-start", context: invocation },
+    ]),
   });
 
-  const CliWaitBuildComplete: Sync = ({ invocation, command, argv }) => ({
+  const CliWaitBuildComplete: Sync = ({ invocation, build, kind, argv }) => ({
     when: actions(
       [CommandLine.invoke, {}, { invocation, argv }],
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build, kind }],
     ),
     where: (frames) =>
       frames.filter((frame) => {
         const raw = frame[argv] as string[];
-        return parseCli(raw).kind === "build";
+        const k = frame[kind] as string;
+        return parseCli(raw).kind === "build" && k === "manual";
       }),
     then: actions([
       CommandLine.waitFor,
-      { invocation, operation: command, mode: "complete" },
+      { invocation, operation: build, mode: "complete" },
     ]),
   });
 
-  const CliWaitDevReady: Sync = ({ invocation, command, argv }) => ({
+  const CliWaitDevReady: Sync = ({ invocation, build, kind, argv }) => ({
     when: actions(
       [CommandLine.invoke, {}, { invocation, argv }],
-      [Commanding.issue, { name: "dev" }, { command }],
+      [Building.start, {}, { build, kind }],
     ),
     where: (frames) =>
       frames.filter((frame) => {
         const raw = frame[argv] as string[];
-        return parseCli(raw).kind === "dev";
+        const k = frame[kind] as string;
+        return parseCli(raw).kind === "dev" && k === "dev-start";
       }),
     then: actions([
       CommandLine.waitFor,
-      { invocation, operation: command, mode: "ready" },
+      { invocation, operation: build, mode: "ready" },
     ]),
   });
 
-  const WaitForCompleteSucceed: Sync = ({ invocation, command }) => ({
+  const WaitForCompleteSucceed: Sync = ({ invocation, build }) => ({
     when: actions(
-      [CommandLine.waitFor, { mode: "complete" }, { invocation, command }],
-      [Commanding.succeed, { command }, { command }],
+      [
+        CommandLine.waitFor,
+        { mode: "complete" },
+        { invocation, command: build },
+      ],
+      [Building.complete, { build }, { build }],
     ),
     then: actions([
       CommandLine.succeed,
@@ -112,47 +121,16 @@ export function createCliSyncs({
     ]),
   });
 
-  const WaitForCompleteFail: Sync = ({ invocation, command, buildError }) => ({
+  const WaitForCompleteFail: Sync = ({ invocation, build, buildError }) => ({
     when: actions(
-      [CommandLine.waitFor, { mode: "complete" }, { invocation, command }],
-      [Commanding.fail, { command, error: buildError }, { command }],
+      [
+        CommandLine.waitFor,
+        { mode: "complete" },
+        { invocation, command: build },
+      ],
+      [Building.fail, { build }, { build, error: buildError }],
     ),
     then: actions([CommandLine.fail, { invocation, error: buildError }]),
-  });
-
-  const WaitForReadySucceed: Sync = ({ invocation, command }) => ({
-    when: actions(
-      [CommandLine.waitFor, { mode: "ready" }, { invocation, command }],
-      [Commanding.succeed, { command }, { command }],
-    ),
-    then: actions([CommandLine.ready, { invocation }]),
-  });
-
-  const WaitForReadyFail: Sync = ({
-    invocation,
-    command,
-    commandError,
-    mode,
-  }) => ({
-    when: actions([
-      Commanding.fail,
-      { command, error: commandError },
-      { command },
-    ]),
-    where: async (frames) => {
-      let enriched = await frames.query(
-        CommandLine._getByOperation,
-        { operation: command },
-        { invocation },
-      );
-      enriched = await enriched.query(
-        CommandLine._getInvocation,
-        { invocation },
-        { mode },
-      );
-      return enriched.filter((frame) => frame[mode] === "ready");
-    },
-    then: actions([CommandLine.fail, { invocation, error: commandError }]),
   });
 
   return {
@@ -163,7 +141,5 @@ export function createCliSyncs({
     CliWaitDevReady,
     WaitForCompleteSucceed,
     WaitForCompleteFail,
-    WaitForReadySucceed,
-    WaitForReadyFail,
   };
 }

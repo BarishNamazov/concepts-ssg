@@ -1,13 +1,13 @@
 /**
  * Build command sync.
  *
- * Pipeline entry point: `Commanding.issue("build")` →
- * configure + scan layouts + scan content + scan public + complete build.
+ * Pipeline entry point: `Building.start` →
+ * clear + configure + scan layouts + scan content + scan public + complete build.
  */
 
 import {
+  Building as _Building,
   Collecting as _Collecting,
-  Commanding as _Commanding,
   Filing as _Filing,
   Frontmattering as _Frontmattering,
   Routing as _Routing,
@@ -15,38 +15,50 @@ import {
 import { actions, type Sync } from "@engine";
 
 type C = {
+  Building: typeof _Building;
   Collecting: typeof _Collecting;
-  Commanding: typeof _Commanding;
   Filing: typeof _Filing;
   Frontmattering: typeof _Frontmattering;
   Routing: typeof _Routing;
 };
 
 export function createBuildSync({
+  Building,
   Collecting,
-  Commanding,
   Filing,
   Frontmattering,
   Routing,
 }: C) {
+  /**
+   * A REQUESTED build starts immediately regardless of context.
+   */
+  const RequestStartsBuild: Sync = ({ build, config, kind }) => ({
+    when: actions([Building.request, {}, { build, config, kind }]),
+    then: actions([Building.start, { build }]),
+  });
+
+  /**
+   * Every RUNNING build triggers the full pipeline.
+   */
   const BuildStartedRunsPipeline: Sync = ({
-    command,
-    args,
+    build,
+    config,
+    kind,
     source,
     output,
     layouts,
     publicDir,
   }) => ({
-    when: actions([Commanding.issue, { name: "build", args }, { command }]),
+    when: actions([Building.start, {}, { build, config, kind }]),
     where: (frames) =>
       frames.map((frame) => {
-        const cmdArgs = frame[args] as Record<string, string>;
+        const cfg = frame[config] as Record<string, string>;
         return {
           ...frame,
-          [source]: cmdArgs.source,
-          [output]: cmdArgs.output,
-          [layouts]: cmdArgs.layouts ?? "",
-          [publicDir]: cmdArgs.public ?? "",
+          [source]: cfg.source,
+          [output]: cfg.output,
+          [layouts]: cfg.layouts ?? "",
+          [publicDir]: cfg.public ?? "",
         };
       }),
     then: actions(
@@ -83,16 +95,34 @@ export function createBuildSync({
         },
       ],
       [Filing.cleanOutput, { outputDirectory: output }],
-      [Commanding.succeed, { command }],
+      [Building.complete, { build }],
     ),
   });
 
-  return { BuildStartedRunsPipeline };
+  /**
+   * When a completed/failed build spawns a pending follow-up, start it.
+   */
+  const CompleteStartsNextBuild: Sync = ({ build, nextBuild }) => ({
+    when: actions([Building.complete, {}, { build, nextBuild }]),
+    then: actions([Building.start, { build: nextBuild }]),
+  });
+
+  const FailStartsNextBuild: Sync = ({ build, nextBuild }) => ({
+    when: actions([Building.fail, {}, { build, nextBuild }]),
+    then: actions([Building.start, { build: nextBuild }]),
+  });
+
+  return {
+    RequestStartsBuild,
+    BuildStartedRunsPipeline,
+    CompleteStartsNextBuild,
+    FailStartsNextBuild,
+  };
 }
 
 const defaultSyncs = createBuildSync({
+  Building: _Building,
   Collecting: _Collecting,
-  Commanding: _Commanding,
   Filing: _Filing,
   Frontmattering: _Frontmattering,
   Routing: _Routing,
