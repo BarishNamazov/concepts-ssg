@@ -40,7 +40,6 @@ export function createSyncs(concepts: AppConcepts) {
 import {
   CommandLine as _CommandLine,
   Serving as _Serving,
-  Building,
   Coalescing,
   Collecting,
   Commanding,
@@ -53,7 +52,6 @@ import {
 } from "@concepts";
 
 const defaultSyncs = createSyncs({
-  Building,
   Coalescing,
   Collecting,
   Commanding,

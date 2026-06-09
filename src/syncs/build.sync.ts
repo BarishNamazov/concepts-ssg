@@ -6,7 +6,6 @@
  */
 
 import {
-  Building as _Building,
   Collecting as _Collecting,
   Commanding as _Commanding,
   Filing as _Filing,
@@ -16,7 +15,6 @@ import {
 import { actions, type Sync } from "@engine";
 
 type C = {
-  Building: typeof _Building;
   Collecting: typeof _Collecting;
   Commanding: typeof _Commanding;
   Filing: typeof _Filing;
@@ -25,35 +23,21 @@ type C = {
 };
 
 export function createBuildSync({
-  Building,
   Collecting,
   Commanding,
   Filing,
   Frontmattering,
   Routing,
 }: C) {
-  const BuildCommandStartsBuild: Sync = ({ command, args }) => ({
-    when: actions([
-      Commanding.issue,
-      { name: "build", args },
-      { command, name: "build" },
-    ]),
-    then: actions([Building.start, {}]),
-  });
-
   const BuildStartedRunsPipeline: Sync = ({
     command,
-    build,
     args,
     source,
     output,
     layouts,
     publicDir,
   }) => ({
-    when: actions(
-      [Commanding.issue, { name: "build", args }, { command }],
-      [Building.start, {}, { build }],
-    ),
+    when: actions([Commanding.issue, { name: "build", args }, { command }]),
     where: (frames) =>
       frames.map((frame) => {
         const cmdArgs = frame[args] as Record<string, string>;
@@ -98,17 +82,15 @@ export function createBuildSync({
           source: "public",
         },
       ],
-      [Building.complete, { build }],
       [Filing.cleanOutput, { outputDirectory: output }],
       [Commanding.succeed, { command }],
     ),
   });
 
-  return { BuildCommandStartsBuild, BuildStartedRunsPipeline };
+  return { BuildStartedRunsPipeline };
 }
 
 const defaultSyncs = createBuildSync({
-  Building: _Building,
   Collecting: _Collecting,
   Commanding: _Commanding,
   Filing: _Filing,
