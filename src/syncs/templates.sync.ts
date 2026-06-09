@@ -3,12 +3,12 @@
  *
  * Layout read → Layouting.define
  * Formatting.render + Routing.derive → Layouting.apply
- * Building.complete → index page regeneration via Layouting.apply.
+ * Commanding.succeed → index page regeneration via Layouting.apply.
  */
 
 import {
-  Building as _Building,
   Collecting as _Collecting,
+  Commanding as _Commanding,
   Filing as _Filing,
   Formatting as _Formatting,
   Frontmattering as _Frontmattering,
@@ -18,8 +18,8 @@ import {
 import { actions, type Sync } from "@engine";
 
 type C = {
-  Building: typeof _Building;
   Collecting: typeof _Collecting;
+  Commanding: typeof _Commanding;
   Filing: typeof _Filing;
   Formatting: typeof _Formatting;
   Frontmattering: typeof _Frontmattering;
@@ -28,8 +28,8 @@ type C = {
 };
 
 export function createTemplatesSync({
-  Building,
   Collecting,
+  Commanding,
   Filing,
   Formatting,
   Frontmattering,
@@ -100,6 +100,7 @@ export function createTemplatesSync({
    * fetches the data and passes it in as typed sequences.
    */
   const FinalizeTriggersIndexRegen: Sync = ({
+    command,
     entry,
     collName,
     sortBy,
@@ -112,7 +113,10 @@ export function createTemplatesSync({
     layoutName,
     vars,
   }) => ({
-    when: actions([Building.complete, {}, {}]),
+    when: actions(
+      [Commanding.issue, { name: "build" }, { command }],
+      [Commanding.succeed, { command }, {}],
+    ),
     where: async (frames) => {
       // For every entry, get its rendered HTML and layout name
       frames = await frames.query(Filing._getAll, {}, { entry });
@@ -217,8 +221,8 @@ export function createTemplatesSync({
 }
 
 const defaultSyncs = createTemplatesSync({
-  Building: _Building,
   Collecting: _Collecting,
+  Commanding: _Commanding,
   Filing: _Filing,
   Formatting: _Formatting,
   Frontmattering: _Frontmattering,

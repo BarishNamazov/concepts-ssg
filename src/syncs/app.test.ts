@@ -346,7 +346,7 @@ describe("integration: full build", () => {
     expect(aboutContent).toContain("<!DOCTYPE html>");
   });
 
-  test("build lifecycle uses a concept-owned build id", async () => {
+  test("build command transitions to SUCCEEDED after build completes", async () => {
     const app = await setupApp();
     await writeFile(join(intSource, "index.md"), "# Welcome");
 
@@ -355,17 +355,9 @@ describe("integration: full build", () => {
       args: { source: intSource, output: intOutput },
     });
 
-    const buildRecords = [...app.Engine.Action.actions.values()].filter(
-      (record) =>
-        record.output && "build" in record.output && !("build" in record.input),
-    );
-    expect(buildRecords).toHaveLength(1);
-
-    const build = buildRecords[0].output?.build as never;
-    expect(build).not.toBe(result.command);
-
-    const [buildDoc] = await app.Building._get({ build });
-    expect(buildDoc.status).toBe("SUCCEEDED");
+    const [cmdDoc] = await app.Commanding._get({ command: result.command });
+    expect(cmdDoc.status).toBe("SUCCEEDED");
+    expect(cmdDoc.name).toBe("build");
   });
 
   test("builds with blog index using {{#each}}", async () => {
