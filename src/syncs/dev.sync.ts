@@ -9,160 +9,115 @@ import type { AppConcepts } from "@concepts";
 import { actions, type Sync } from "@engine";
 
 export function createDevSyncs({
-  Coalescing,
-  Commanding,
+  Building,
   CommandLine,
   Serving,
   Watching,
-}: Pick<
-  AppConcepts,
-  "Coalescing" | "Commanding" | "CommandLine" | "Serving" | "Watching"
->) {
+}: Pick<AppConcepts, "Building" | "CommandLine" | "Serving" | "Watching">) {
   /**
-   * Dev startup: when a "dev" command is issued, start the server, watch the
-   * source directory, and kick off the initial build.
+   * Dev startup: when a dev-start build is requested with context, start the
+   * server, watch the source directory, and kick off the build.
    */
-  const DevStart: Sync = ({ command, source, output, port, args }) => ({
-    when: actions([Commanding.issue, { name: "dev", args }, { command }]),
+  const DevStart: Sync = ({
+    build,
+    config,
+    kind,
+    context,
+    source,
+    output,
+    port,
+  }) => ({
+    when: actions([
+      Building.request,
+      { kind: "dev-start" },
+      { build, config, kind, context },
+    ]),
     where: (frames) =>
       frames.map((frame) => {
-        const cmdArgs = frame[args] as Record<string, string>;
+        const cfg = frame[config] as Record<string, string>;
         return {
           ...frame,
-          [source]: cmdArgs.source,
-          [output]: cmdArgs.output,
-          [port]: parseInt(cmdArgs.port ?? "3000", 10),
+          [source]: cfg.source,
+          [output]: cfg.output,
+          [port]: parseInt(cfg.port ?? "3000", 10),
         };
       }),
     then: actions(
       [Serving.start, { port, root: output }],
-      [Watching.start, { subject: source, context: command }],
-      [Coalescing.request, { context: command, kind: "initial" }],
+      [Watching.start, { subject: source, context }],
     ),
-  });
-
-  /**
-   * A coalesced request that starts work issues an actual build command.
-   */
-  const CoalescedRequestStartsBuild: Sync = ({
-    devCmd,
-    args,
-    kind,
-    buildArgs,
-    started,
-  }) => ({
-    when: actions([Coalescing.request, {}, { context: devCmd, kind, started }]),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: devCmd },
-        { args },
-      );
-      return frames.map((frame) => ({
-        ...frame,
-        [buildArgs]: {
-          ...(frame[args] as Record<string, string>),
-          _devContext: String(frame[devCmd]),
-          _devKind: String(frame[kind]),
-        },
-      }));
-    },
-    then: actions([Commanding.issue, { name: "build", args: buildArgs }]),
-  });
-
-  /**
-   * Finishing an active build can start one queued follow-up build.
-   */
-  const CoalescedFollowUpStartsBuild: Sync = ({
-    devCmd,
-    args,
-    kind,
-    buildArgs,
-    started,
-  }) => ({
-    when: actions([Coalescing.finish, {}, { context: devCmd, kind, started }]),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: devCmd },
-        { args },
-      );
-      return frames.map((frame) => ({
-        ...frame,
-        [buildArgs]: {
-          ...(frame[args] as Record<string, string>),
-          _devContext: String(frame[devCmd]),
-          _devKind: String(frame[kind]),
-        },
-      }));
-    },
-    then: actions([Commanding.issue, { name: "build", args: buildArgs }]),
   });
 
   /**
    * Start a watcher for the layouts directory when one is configured.
    */
-  const DevWatchLayouts: Sync = ({ command, layouts, args }) => ({
-    when: actions([Commanding.issue, { name: "dev", args }, { command }]),
+  const DevWatchLayouts: Sync = ({
+    build,
+    config,
+    kind,
+    context,
+    layouts,
+  }) => ({
+    when: actions([Building.start, {}, { build, config, kind, context }]),
     where: (frames) =>
       frames
+        .filter((frame) => frame[kind] === "dev-start")
         .map((frame) => {
-          const cmdArgs = frame[args] as Record<string, string>;
-          return { ...frame, [layouts]: cmdArgs.layouts ?? "" };
+          const cfg = frame[config] as Record<string, string>;
+          return { ...frame, [layouts]: cfg.layouts ?? "" };
         })
         .filter((frame) => frame[layouts] !== ""),
-    then: actions([Watching.start, { subject: layouts, context: command }]),
+    then: actions([Watching.start, { subject: layouts, context }]),
   });
 
   /**
    * Start a watcher for the public assets directory when one is configured.
    */
-  const DevWatchPublic: Sync = ({ command, publicDir, args }) => ({
-    when: actions([Commanding.issue, { name: "dev", args }, { command }]),
+  const DevWatchPublic: Sync = ({
+    build,
+    config,
+    kind,
+    context,
+    publicDir,
+  }) => ({
+    when: actions([Building.start, {}, { build, config, kind, context }]),
     where: (frames) =>
       frames
+        .filter((frame) => frame[kind] === "dev-start")
         .map((frame) => {
-          const cmdArgs = frame[args] as Record<string, string>;
-          return { ...frame, [publicDir]: cmdArgs.public ?? "" };
+          const cfg = frame[config] as Record<string, string>;
+          return { ...frame, [publicDir]: cfg.public ?? "" };
         })
         .filter((frame) => frame[publicDir] !== ""),
-    then: actions([Watching.start, { subject: publicDir, context: command }]),
+    then: actions([Watching.start, { subject: publicDir, context }]),
   });
 
   /**
-   * Initial build succeeded — mark the dev command as ready.
-   *
-   * Matches: dev issue + server start (ok) + watcher start (ok) +
-   *          initial build issue + build succeed => mark dev ready
+   * Initial build succeeded — mark the dev invocation as ready.
    */
   const DevInitialBuildReady: Sync = ({
-    devCmd,
-    args,
+    build,
+    config,
+    kind,
+    context,
     srv,
     w,
-    buildCmd,
     port,
     root,
     url,
-    cliInvocation,
   }) => ({
     when: actions(
-      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
+      [Building.start, {}, { build, config, kind, context }],
       [Serving.start, {}, { server: srv }],
       [Watching.start, {}, { watcher: w }],
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [Commanding.succeed, { command: buildCmd }, { command: buildCmd }],
+      [Building.complete, { build }, { build }],
     ),
     where: async (frames) => {
-      let enriched = await frames.query(
+      const filtered = frames.filter((frame) => frame[kind] === "dev-start");
+      const enriched = await filtered.query(
         Serving._getServer,
         { server: srv },
         { port, root },
-      );
-      enriched = await enriched.query(
-        CommandLine._getByOperation,
-        { operation: devCmd },
-        { invocation: cliInvocation },
       );
       return enriched.map((frame) => ({
         ...frame,
@@ -170,207 +125,133 @@ export function createDevSyncs({
       }));
     },
     then: actions(
-      [CommandLine.notice, { invocation: cliInvocation, message: url }],
-      [Commanding.succeed, { command: devCmd, result: "ready" }],
+      [CommandLine.notice, { invocation: context, message: url }],
+      [CommandLine.ready, { invocation: context }],
     ),
   });
 
   /**
-   * Initial build failed during dev startup — report the error but keep the
-   * server and watcher alive, marking dev as ready anyway.
+   * Initial build failed during dev startup — report the error but mark dev
+   * as ready anyway so the server stays alive.
    */
   const DevInitialBuildFail: Sync = ({
-    devCmd,
-    args,
+    build,
+    config,
+    kind,
+    context,
     srv,
     w,
-    buildCmd,
-    invocation,
     buildError,
   }) => ({
     when: actions(
-      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
+      [Building.start, {}, { build, config, kind, context }],
       [Serving.start, {}, { server: srv }],
       [Watching.start, {}, { watcher: w }],
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [
-        Commanding.fail,
-        { command: buildCmd, error: buildError },
-        { command: buildCmd },
-      ],
+      [Building.fail, { build }, { build, error: buildError }],
     ),
-    where: async (frames) => {
-      return await frames.query(
-        CommandLine._getByOperation,
-        { operation: devCmd },
-        { invocation },
-      );
-    },
+    where: (frames) => frames.filter((frame) => frame[kind] === "dev-start"),
     then: actions(
       [
         CommandLine.notice,
         {
-          invocation,
+          invocation: context,
           message: buildError,
           level: "error",
         },
       ],
-      [Commanding.succeed, { command: devCmd, result: "ready" }],
+      [CommandLine.ready, { invocation: context }],
     ),
   });
 
   /**
-   * Serving.start fails — fail the dev command.
+   * Serving.start fails — fail the dev invocation.
    */
-  const DevStartFail: Sync = ({ devCmd, args, startError }) => ({
+  const DevStartFail: Sync = ({ invocation, build, context, startError }) => ({
     when: actions(
-      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
+      [Building.start, {}, { build, context }],
       [Serving.start, {}, { error: startError }],
     ),
-    then: actions([Commanding.fail, { command: devCmd, error: startError }]),
+    where: (frames) =>
+      frames.map((frame) => ({ ...frame, [invocation]: frame[context] })),
+    then: actions([CommandLine.fail, { invocation, error: startError }]),
   });
 
   /**
-   * Watching.start fails after successful Serving.start — fail the dev command.
+   * Watching.start fails after successful Serving.start — fail the dev invocation.
    */
-  const DevWatchFail: Sync = ({ devCmd, args, srv, watchError }) => ({
+  const DevWatchFail: Sync = ({
+    invocation,
+    build,
+    context,
+    srv,
+    watchError,
+  }) => ({
     when: actions(
-      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
+      [Building.start, {}, { build, context }],
       [Serving.start, {}, { server: srv }],
       [Watching.start, {}, { error: watchError }],
     ),
-    then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
+    where: (frames) =>
+      frames.map((frame) => ({ ...frame, [invocation]: frame[context] })),
+    then: actions([CommandLine.fail, { invocation, error: watchError }]),
   });
 
   /**
-   * Watching.start fails — fail the dev command (no Serving.start requirement).
+   * Watching.start fails — fail the dev invocation (no Serving.start requirement).
    */
-  const WatchStartErrorFailsDev: Sync = ({ devCmd, args, watchError }) => ({
+  const WatchStartErrorFailsDev: Sync = ({
+    invocation,
+    build,
+    context,
+    watchError,
+  }) => ({
     when: actions(
-      [Commanding.issue, { name: "dev", args }, { command: devCmd }],
+      [Building.start, {}, { build, context }],
       [Watching.start, {}, { error: watchError }],
     ),
-    then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
+    where: (frames) =>
+      frames.map((frame) => ({ ...frame, [invocation]: frame[context] })),
+    then: actions([CommandLine.fail, { invocation, error: watchError }]),
   });
 
   /**
-   * Runtime watch failure — fail the dev command referenced by the watcher
+   * Runtime watch failure — fail the dev invocation referenced by the watcher
    * context.
    */
-  const WatchRuntimeErrorFailsDev: Sync = ({ devCmd, watchError }) => ({
-    when: actions([Watching.fail, {}, { context: devCmd, error: watchError }]),
+  const WatchRuntimeErrorFailsDev: Sync = ({ invocation, watchError }) => ({
+    when: actions([
+      Watching.fail,
+      {},
+      { context: invocation, error: watchError },
+    ]),
     where: (frames) =>
-      frames.filter((frame) => typeof frame[devCmd] === "string"),
-    then: actions([Commanding.fail, { command: devCmd, error: watchError }]),
+      frames.filter((frame) => typeof frame[invocation] === "string"),
+    then: actions([CommandLine.fail, { invocation, error: watchError }]),
   });
 
   /**
-   * Source change detected — request a serialized rebuild for the dev session.
+   * Source change detected — request a build for the dev context.
    */
-  const DevWatchRebuild: Sync = ({ change, subject, context: devCmd }) => ({
-    when: actions([Watching.poll, {}, { change, subject, context: devCmd }]),
-    then: actions([Coalescing.request, { context: devCmd, kind: "change" }]),
+  const DevWatchRebuild: Sync = ({ change, subject, context }) => ({
+    when: actions([Watching.poll, {}, { change, subject, context }]),
+    then: actions([Building.request, { context, kind: "change", config: {} }]),
   });
 
   /**
-   * Scheduled build succeeded — release the active slot.
+   * Successful rebuild — reload browsers and notify.
    */
-  const ScheduledBuildSucceedFinishes: Sync = ({ buildCmd, args, devCmd }) => ({
+  const DevRebuildSucceed: Sync = ({ build, config, kind, context }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [Commanding.succeed, { command: buildCmd }, { command: buildCmd }],
+      [Building.start, {}, { build, config, kind, context }],
+      [Building.complete, { build }, { build }],
     ),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: buildCmd },
-        { args },
-      );
-      return frames
-        .map((frame) => ({
-          ...frame,
-          [devCmd]: (frame[args] as Record<string, string>)._devContext ?? "",
-        }))
-        .filter((frame) => frame[devCmd] !== "");
-    },
-    then: actions([Coalescing.finish, { context: devCmd }]),
-  });
-
-  /**
-   * Scheduled build failed — release the active slot so queued changes can run.
-   */
-  const ScheduledBuildFailFinishes: Sync = ({
-    buildCmd,
-    args,
-    devCmd,
-    buildError,
-  }) => ({
-    when: actions(
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [
-        Commanding.fail,
-        { command: buildCmd, error: buildError },
-        { command: buildCmd },
-      ],
-    ),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: buildCmd },
-        { args },
-      );
-      return frames
-        .map((frame) => ({
-          ...frame,
-          [devCmd]: (frame[args] as Record<string, string>)._devContext ?? "",
-        }))
-        .filter((frame) => frame[devCmd] !== "");
-    },
-    then: actions([Coalescing.finish, { context: devCmd }]),
-  });
-
-  /**
-   * Successful scheduled rebuild after a source change — reload browsers and notify.
-   */
-  const DevRebuildSucceed: Sync = ({
-    buildCmd,
-    invocation,
-    args,
-    devCmd,
-    kind,
-  }) => ({
-    when: actions(
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [Commanding.succeed, { command: buildCmd }, { command: buildCmd }],
-    ),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: buildCmd },
-        { args },
-      );
-      frames = frames
-        .map((frame) => {
-          const buildArgs = frame[args] as Record<string, string>;
-          return {
-            ...frame,
-            [devCmd]: buildArgs._devContext ?? "",
-            [kind]: buildArgs._devKind ?? "",
-          };
-        })
-        .filter((frame) => frame[devCmd] !== "" && frame[kind] === "change");
-      return await frames.query(
-        CommandLine._getByOperation,
-        { operation: devCmd },
-        { invocation },
-      );
-    },
+    where: (frames) => frames.filter((frame) => frame[kind] === "change"),
     then: actions(
       [Serving.reload, {}],
       [
         CommandLine.notice,
         {
-          invocation,
+          invocation: context,
           message: "Change detected, rebuilt.",
         },
       ],
@@ -378,50 +259,24 @@ export function createDevSyncs({
   });
 
   /**
-   * Failed scheduled rebuild after a source change — report error but keep dev alive.
+   * Failed rebuild — report error but keep dev alive.
    */
   const DevRebuildFail: Sync = ({
-    buildCmd,
-    invocation,
-    args,
-    devCmd,
+    build,
+    config,
     kind,
+    context,
     buildError,
   }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command: buildCmd }],
-      [
-        Commanding.fail,
-        { command: buildCmd, error: buildError },
-        { command: buildCmd },
-      ],
+      [Building.start, {}, { build, config, kind, context }],
+      [Building.fail, { build }, { build, error: buildError }],
     ),
-    where: async (frames) => {
-      frames = await frames.query(
-        Commanding._get,
-        { command: buildCmd },
-        { args },
-      );
-      frames = frames
-        .map((frame) => {
-          const buildArgs = frame[args] as Record<string, string>;
-          return {
-            ...frame,
-            [devCmd]: buildArgs._devContext ?? "",
-            [kind]: buildArgs._devKind ?? "",
-          };
-        })
-        .filter((frame) => frame[devCmd] !== "" && frame[kind] === "change");
-      return await frames.query(
-        CommandLine._getByOperation,
-        { operation: devCmd },
-        { invocation },
-      );
-    },
+    where: (frames) => frames.filter((frame) => frame[kind] === "change"),
     then: actions([
       CommandLine.notice,
       {
-        invocation,
+        invocation: context,
         message: buildError,
         level: "error",
       },
@@ -430,8 +285,6 @@ export function createDevSyncs({
 
   return {
     DevStart,
-    CoalescedRequestStartsBuild,
-    CoalescedFollowUpStartsBuild,
     DevWatchLayouts,
     DevWatchPublic,
     DevInitialBuildReady,
@@ -441,8 +294,6 @@ export function createDevSyncs({
     WatchStartErrorFailsDev,
     WatchRuntimeErrorFailsDev,
     DevWatchRebuild,
-    ScheduledBuildSucceedFinishes,
-    ScheduledBuildFailFinishes,
     DevRebuildSucceed,
     DevRebuildFail,
   };

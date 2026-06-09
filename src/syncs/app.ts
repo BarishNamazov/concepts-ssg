@@ -2,9 +2,9 @@
  * Static site generator build pipeline syncs.
  *
  * Pipeline:
- *   command "build" → configure + layout-scan + content-scan + finalize + succeed
+ *   Building.request → Building.start → clear + scan + complete
  *   scan (success) → read → parse → render + route + collect → apply → write
- *   scan (failure) → command fail
+ *   scan (failure) → build fail
  */
 
 import type { AppConcepts } from "@concepts";
@@ -40,9 +40,8 @@ export function createSyncs(concepts: AppConcepts) {
 import {
   CommandLine as _CommandLine,
   Serving as _Serving,
-  Coalescing,
+  Building,
   Collecting,
-  Commanding,
   Filing,
   Formatting,
   Frontmattering,
@@ -52,9 +51,8 @@ import {
 } from "@concepts";
 
 const defaultSyncs = createSyncs({
-  Coalescing,
+  Building,
   Collecting,
-  Commanding,
   CommandLine: _CommandLine,
   Filing,
   Formatting,

@@ -1,24 +1,24 @@
 /**
  * Error handling syncs.
  *
- * Filing.scan (failure) → Commanding.fail.
+ * Filing.scan (failure) → Building.fail.
  */
 
-import { Commanding as _Commanding, Filing as _Filing } from "@concepts";
+import { Building as _Building, Filing as _Filing } from "@concepts";
 import { actions, type Sync } from "@engine";
 
 type C = {
-  Commanding: typeof _Commanding;
+  Building: typeof _Building;
   Filing: typeof _Filing;
 };
 
-export function createErrorsSync({ Commanding, Filing }: C) {
-  const ScanErrorFailsBuild: Sync = ({ command, error }) => ({
+export function createErrorsSync({ Building, Filing }: C) {
+  const ScanErrorFailsBuild: Sync = ({ build, error }) => ({
     when: actions(
-      [Commanding.issue, { name: "build" }, { command }],
+      [Building.start, {}, { build }],
       [Filing.scan, {}, { error }],
     ),
-    then: actions([Commanding.fail, { command, error }]),
+    then: actions([Building.fail, { build, error }]),
   });
 
   return {
@@ -27,7 +27,7 @@ export function createErrorsSync({ Commanding, Filing }: C) {
 }
 
 const defaultSyncs = createErrorsSync({
-  Commanding: _Commanding,
+  Building: _Building,
   Filing: _Filing,
 });
 export default defaultSyncs;

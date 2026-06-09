@@ -6,28 +6,33 @@ import type { AppConcepts } from "@concepts";
 import { actions, type Sync } from "@engine";
 
 export function createReportingSyncs({
-  Commanding,
+  Building,
   CommandLine,
   Filing,
-}: Pick<AppConcepts, "Commanding" | "CommandLine" | "Filing">) {
+}: Pick<AppConcepts, "Building" | "CommandLine" | "Filing">) {
   /**
    * After the build pipeline finishes scanning every file, report a
    * one-line summary before the CLI prints "Build complete."
    */
   const BuildReportStats: Sync = ({
     invocation,
-    command,
+    build,
+    kind,
     source,
     fileList,
     statsMsg,
   }) => ({
     when: actions(
       [CommandLine.invoke, {}, { invocation }],
-      [Commanding.issue, { name: "build" }, { command }],
-      [Commanding.succeed, { command }, {}],
+      [Building.start, {}, { build, kind }],
+      [Building.complete, { build }, { build }],
     ),
     where: async (frames) => {
-      return (await frames.query(Filing._getAll, {}, { source }))
+      return (
+        await frames
+          .filter((frame) => frame[kind] === "manual")
+          .query(Filing._getAll, {}, { source })
+      )
         .collectAs([source], fileList)
         .map((frame) => {
           const files = frame[fileList] as { source: string }[];

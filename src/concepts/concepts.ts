@@ -1,7 +1,6 @@
 import { SyncConcept } from "@engine";
-import CoalescingConcept from "./Coalescing/CoalescingConcept.ts";
+import BuildingConcept from "./Building/BuildingConcept.ts";
 import CollectingConcept from "./Collecting/CollectingConcept.ts";
-import CommandingConcept from "./Commanding/CommandingConcept.ts";
 import CommandLineConcept from "./CommandLine/CommandLineConcept.ts";
 import FilingConcept from "./Filing/FilingConcept.ts";
 import FormattingConcept from "./Formatting/FormattingConcept.ts";
@@ -15,8 +14,7 @@ import WatchingConcept from "./Watching/WatchingConcept.ts";
 type ConceptConstructor = new (namespace?: string) => object;
 
 export const conceptClasses = {
-  Coalescing: CoalescingConcept,
-  Commanding: CommandingConcept,
+  Building: BuildingConcept,
   CommandLine: CommandLineConcept,
   Filing: FilingConcept,
   Formatting: FormattingConcept,
@@ -64,8 +62,7 @@ export type AppConcepts = ReturnType<typeof createConcepts>;
 const appConcepts = createConcepts();
 
 export const Engine = appConcepts.Engine;
-export const Coalescing = appConcepts.Coalescing;
-export const Commanding = appConcepts.Commanding;
+export const Building = appConcepts.Building;
 export const CommandLine = appConcepts.CommandLine;
 export const Filing = appConcepts.Filing;
 export const Formatting = appConcepts.Formatting;
